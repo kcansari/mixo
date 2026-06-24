@@ -17,6 +17,6 @@ func main() {
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("hello world"))
 	})
-	slog.Info("Server started on :3333")
-	http.ListenAndServe(":3333", r)
+	slog.Info("Server started on :8080")
+	http.ListenAndServe(":8080", r)
 }
