@@ -23,10 +23,10 @@ import (
 	"github.com/kcansari/mixo/internal/logging"
 	appmiddleware "github.com/kcansari/mixo/internal/middleware"
 	"github.com/kcansari/mixo/internal/oauth"
+	"github.com/kcansari/mixo/internal/routes"
 	"github.com/kcansari/mixo/internal/security"
 	"github.com/kcansari/mixo/internal/services"
 	"github.com/kcansari/mixo/internal/store"
-	"github.com/kcansari/mixo/routes"
 
 	"github.com/joho/godotenv"
 )
