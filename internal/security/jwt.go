@@ -15,13 +15,19 @@ var (
 	ErrExpirationTimeZero = errors.New("security.jwt.GenerateJWT: expiration time is zero")
 	ErrSecretEmpty        = errors.New("security.jwt.NewJWTService: secret is empty")
 	ErrTokenEmpty         = errors.New("security.jwt.ParseJWT: token is empty")
+	ErrInvalidTokenType   = errors.New("security.jwt.GenerateJWT: token type is invalid")
 )
 
+type TokenType string
+
 const (
-	JWTIssuer = "mixo"
+	JWTIssuer                  = "mixo"
+	TokenTypeAccess  TokenType = "access_token"
+	TokenTypeRefresh TokenType = "refresh_token"
 )
 
 type CustomClaims struct {
+	TokenType TokenType
 	jwt.RegisteredClaims
 }
 
@@ -38,7 +44,7 @@ func NewJWTService(secret string) (*JWTService, error) {
 	}, nil
 }
 
-func (j *JWTService) GenerateJWT(userID uuid.UUID, exp time.Time) (string, error) {
+func (j *JWTService) GenerateJWT(userID uuid.UUID, exp time.Time, tokenType TokenType) (string, error) {
 
 	if userID == uuid.Nil {
 		return "", ErrUserIDCannotBeNil
@@ -48,8 +54,13 @@ func (j *JWTService) GenerateJWT(userID uuid.UUID, exp time.Time) (string, error
 		return "", ErrExpirationTimeZero
 	}
 
+	if !tokenType.IsValid() {
+		return "", ErrInvalidTokenType
+	}
+
 	claims := CustomClaims{
-		jwt.RegisteredClaims{
+		TokenType: tokenType,
+		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(exp),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			Issuer:    JWTIssuer,
@@ -87,4 +98,13 @@ func (j *JWTService) ParseJWT(t string) (*CustomClaims, error) {
 	}
 
 	return claims, nil
+}
+
+func (t TokenType) IsValid() bool {
+	switch t {
+	case TokenTypeAccess, TokenTypeRefresh:
+		return true
+	default:
+		return false
+	}
 }

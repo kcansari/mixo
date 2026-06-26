@@ -44,18 +44,36 @@ func TestJWTService_NewJWTService(t *testing.T) {
 
 func TestJWTService_GenerateJWT(t *testing.T) {
 	tests := []struct {
-		name    string
-		secret  string
-		userID  uuid.UUID
-		exp     time.Time
-		wantErr error
+		name      string
+		secret    string
+		tokenType TokenType
+		userID    uuid.UUID
+		exp       time.Time
+		wantErr   error
 	}{
 		{
-			name:    "valid token",
-			secret:  "secret",
-			userID:  uuid.New(),
-			exp:     time.Now().Add(1 * time.Hour),
-			wantErr: nil,
+			name:      "generate access token",
+			secret:    "secret",
+			tokenType: TokenTypeAccess,
+			userID:    uuid.New(),
+			exp:       time.Now().Add(1 * time.Hour),
+			wantErr:   nil,
+		},
+		{
+			name:      "generate refresh token",
+			secret:    "secret",
+			tokenType: TokenTypeRefresh,
+			userID:    uuid.New(),
+			exp:       time.Now().Add(1 * time.Hour),
+			wantErr:   nil,
+		},
+		{
+			name:      "generate invalid token type",
+			secret:    "secret",
+			tokenType: "invalid",
+			userID:    uuid.New(),
+			exp:       time.Now().Add(1 * time.Hour),
+			wantErr:   ErrInvalidTokenType,
 		},
 		{
 			name:    "empty userID",
@@ -78,7 +96,7 @@ func TestJWTService_GenerateJWT(t *testing.T) {
 			if err != nil {
 				t.Fatalf("NewJWTService returned an error: %v", err)
 			}
-			got, gotErr := j.GenerateJWT(tt.userID, tt.exp)
+			got, gotErr := j.GenerateJWT(tt.userID, tt.exp, tt.tokenType)
 
 			if !errors.Is(gotErr, tt.wantErr) {
 				t.Errorf("GenerateJWT() error = %v, wantErr %v", gotErr, tt.wantErr)
@@ -97,14 +115,17 @@ func TestJWTService_ParseJWT(t *testing.T) {
 	tests := []struct {
 		name        string
 		exp         time.Time
+		tokenType   TokenType
 		modifyToken func(*string)
 		claims      *CustomClaims
 		wantErr     error
 	}{
 		{
-			name: "valid token",
-			exp:  exp,
+			name:      "valid access token",
+			exp:       exp,
+			tokenType: TokenTypeAccess,
 			claims: &CustomClaims{
+				TokenType: TokenTypeAccess,
 				RegisteredClaims: jwt.RegisteredClaims{
 					Subject:   userID.String(),
 					ExpiresAt: jwt.NewNumericDate(exp),
@@ -115,48 +136,53 @@ func TestJWTService_ParseJWT(t *testing.T) {
 			wantErr: nil,
 		},
 		{
-			name:    "expired token",
-			exp:     time.Now().Add(-1 * time.Hour),
-			claims:  nil,
-			wantErr: jwt.ErrTokenExpired,
+			name:      "expired token",
+			exp:       time.Now().Add(-1 * time.Hour),
+			tokenType: TokenTypeAccess,
+			claims:    nil,
+			wantErr:   jwt.ErrTokenExpired,
 		},
 		{
-			name:   "malformed token",
-			exp:    exp,
-			claims: nil,
+			name:      "malformed token",
+			exp:       exp,
+			tokenType: TokenTypeAccess,
+			claims:    nil,
 			modifyToken: func(token *string) {
 				*token = *token + "-invalid"
 			},
 			wantErr: jwt.ErrTokenSignatureInvalid,
 		},
 		{
-			name:   "empty token",
-			exp:    exp,
-			claims: nil,
+			name:      "empty token",
+			exp:       exp,
+			tokenType: TokenTypeAccess,
+			claims:    nil,
 			modifyToken: func(token *string) {
 				*token = ""
 			},
 			wantErr: ErrTokenEmpty,
 		},
 		{
-			name:   "malformed token",
-			exp:    exp,
-			claims: nil,
+			name:      "malformed token",
+			exp:       exp,
+			tokenType: TokenTypeAccess,
+			claims:    nil,
 			modifyToken: func(token *string) {
 				*token = ".-,??--invalid"
 			},
 			wantErr: jwt.ErrTokenMalformed,
 		},
 		{
-			name:   "signed with wrong secret",
-			exp:    exp,
-			claims: nil,
+			name:      "signed with wrong secret",
+			exp:       exp,
+			tokenType: TokenTypeAccess,
+			claims:    nil,
 			modifyToken: func(token *string) {
 				j, err := NewJWTService("wrong-secret")
 				if err != nil {
 					t.Fatalf("NewJWTService returned an error: %v", err)
 				}
-				*token, err = j.GenerateJWT(userID, exp)
+				*token, err = j.GenerateJWT(userID, exp, TokenTypeAccess)
 				if err != nil {
 					t.Fatalf("GenerateJWT returned an error: %v", err)
 				}
@@ -170,7 +196,7 @@ func TestJWTService_ParseJWT(t *testing.T) {
 			if err != nil {
 				t.Fatalf("NewJWTService returned an error: %v", err)
 			}
-			tokenString, err := j.GenerateJWT(userID, tt.exp)
+			tokenString, err := j.GenerateJWT(userID, tt.exp, tt.tokenType)
 			if err != nil {
 				t.Fatalf("GenerateJWT returned an error: %v", err)
 			}
