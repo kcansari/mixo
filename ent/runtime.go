@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/kcansari/mixo/ent/refresh_token"
 	"github.com/kcansari/mixo/ent/schema"
 	"github.com/kcansari/mixo/ent/user"
 )
@@ -14,6 +15,12 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	refresh_tokenFields := schema.Refresh_Token{}.Fields()
+	_ = refresh_tokenFields
+	// refresh_tokenDescCreatedAt is the schema descriptor for created_at field.
+	refresh_tokenDescCreatedAt := refresh_tokenFields[2].Descriptor()
+	// refresh_token.DefaultCreatedAt holds the default value on creation for the created_at field.
+	refresh_token.DefaultCreatedAt = refresh_tokenDescCreatedAt.Default.(func() time.Time)
 	userFields := schema.User{}.Fields()
 	_ = userFields
 	// userDescVerifiedEmail is the schema descriptor for verified_email field.

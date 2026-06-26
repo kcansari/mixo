@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
+	"github.com/kcansari/mixo/ent/refresh_token"
 	"github.com/kcansari/mixo/ent/user"
 )
 
@@ -153,6 +154,21 @@ func (_c *UserCreate) SetNillableID(v *uuid.UUID) *UserCreate {
 		_c.SetID(*v)
 	}
 	return _c
+}
+
+// AddRefreshTokenIDs adds the "refresh_tokens" edge to the Refresh_Token entity by IDs.
+func (_c *UserCreate) AddRefreshTokenIDs(ids ...int) *UserCreate {
+	_c.mutation.AddRefreshTokenIDs(ids...)
+	return _c
+}
+
+// AddRefreshTokens adds the "refresh_tokens" edges to the Refresh_Token entity.
+func (_c *UserCreate) AddRefreshTokens(v ...*Refresh_Token) *UserCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddRefreshTokenIDs(ids...)
 }
 
 // Mutation returns the UserMutation object of the builder.
@@ -333,6 +349,22 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.IsAdmin(); ok {
 		_spec.SetField(user.FieldIsAdmin, field.TypeBool, value)
 		_node.IsAdmin = value
+	}
+	if nodes := _c.mutation.RefreshTokensIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.RefreshTokensTable,
+			Columns: []string{user.RefreshTokensColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(refresh_token.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

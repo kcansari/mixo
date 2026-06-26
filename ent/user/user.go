@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 )
 
@@ -38,8 +39,17 @@ const (
 	FieldUpdatedAt = "updated_at"
 	// FieldIsAdmin holds the string denoting the is_admin field in the database.
 	FieldIsAdmin = "is_admin"
+	// EdgeRefreshTokens holds the string denoting the refresh_tokens edge name in mutations.
+	EdgeRefreshTokens = "refresh_tokens"
 	// Table holds the table name of the user in the database.
 	Table = "users"
+	// RefreshTokensTable is the table that holds the refresh_tokens relation/edge.
+	RefreshTokensTable = "refresh_tokens"
+	// RefreshTokensInverseTable is the table name for the Refresh_Token entity.
+	// It exists in this package in order to avoid circular dependency with the "refresh_token" package.
+	RefreshTokensInverseTable = "refresh_tokens"
+	// RefreshTokensColumn is the table column denoting the refresh_tokens relation/edge.
+	RefreshTokensColumn = "user_refresh_tokens"
 )
 
 // Columns holds all SQL columns for user fields.
@@ -152,4 +162,25 @@ func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByIsAdmin orders the results by the is_admin field.
 func ByIsAdmin(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldIsAdmin, opts...).ToFunc()
+}
+
+// ByRefreshTokensCount orders the results by refresh_tokens count.
+func ByRefreshTokensCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newRefreshTokensStep(), opts...)
+	}
+}
+
+// ByRefreshTokens orders the results by refresh_tokens terms.
+func ByRefreshTokens(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newRefreshTokensStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+func newRefreshTokensStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(RefreshTokensInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, RefreshTokensTable, RefreshTokensColumn),
+	)
 }

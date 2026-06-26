@@ -6,6 +6,7 @@ require (
 	entgo.io/ent v0.14.6
 	github.com/go-chi/chi/v5 v5.3.0
 	github.com/go-chi/render v1.0.3
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
@@ -13,6 +14,7 @@ require (
 	github.com/redis/go-redis/v9 v9.21.0
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.43.0
+	github.com/testcontainers/testcontainers-go/modules/postgres v0.43.0
 	go.uber.org/mock v0.6.0
 	golang.org/x/oauth2 v0.36.0
 )

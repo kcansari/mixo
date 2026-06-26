@@ -6,5 +6,8 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
+// Refresh_Token is the predicate function for refresh_token builders.
+type Refresh_Token func(*sql.Selector)
+
 // User is the predicate function for user builders.
 type User func(*sql.Selector)

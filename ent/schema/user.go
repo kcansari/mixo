@@ -4,7 +4,9 @@ import (
 	"time"
 
 	"entgo.io/ent"
+	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
+	"entgo.io/ent/schema/index"
 	"github.com/google/uuid"
 )
 
@@ -34,10 +36,14 @@ func (User) Fields() []ent.Field {
 
 // Edges of the User.
 func (User) Edges() []ent.Edge {
-	return nil
+	return []ent.Edge{
+		edge.To("refresh_tokens", Refresh_Token.Type),
+	}
 }
 
 // Indexes of the User.
 func (User) Indexes() []ent.Index {
-	return nil
+	return []ent.Index{
+		index.Fields("provider", "provider_user_id").Unique(),
+	}
 }

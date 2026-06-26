@@ -4,7 +4,6 @@ package ent
 
 import (
 	"context"
-	"database/sql/driver"
 	"fmt"
 	"math"
 
@@ -18,53 +17,54 @@ import (
 	"github.com/kcansari/mixo/ent/user"
 )
 
-// UserQuery is the builder for querying User entities.
-type UserQuery struct {
+// RefreshTokenQuery is the builder for querying Refresh_Token entities.
+type RefreshTokenQuery struct {
 	config
-	ctx               *QueryContext
-	order             []user.OrderOption
-	inters            []Interceptor
-	predicates        []predicate.User
-	withRefreshTokens *RefreshTokenQuery
+	ctx        *QueryContext
+	order      []refresh_token.OrderOption
+	inters     []Interceptor
+	predicates []predicate.Refresh_Token
+	withOwner  *UserQuery
+	withFKs    bool
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
 }
 
-// Where adds a new predicate for the UserQuery builder.
-func (_q *UserQuery) Where(ps ...predicate.User) *UserQuery {
+// Where adds a new predicate for the RefreshTokenQuery builder.
+func (_q *RefreshTokenQuery) Where(ps ...predicate.Refresh_Token) *RefreshTokenQuery {
 	_q.predicates = append(_q.predicates, ps...)
 	return _q
 }
 
 // Limit the number of records to be returned by this query.
-func (_q *UserQuery) Limit(limit int) *UserQuery {
+func (_q *RefreshTokenQuery) Limit(limit int) *RefreshTokenQuery {
 	_q.ctx.Limit = &limit
 	return _q
 }
 
 // Offset to start from.
-func (_q *UserQuery) Offset(offset int) *UserQuery {
+func (_q *RefreshTokenQuery) Offset(offset int) *RefreshTokenQuery {
 	_q.ctx.Offset = &offset
 	return _q
 }
 
 // Unique configures the query builder to filter duplicate records on query.
 // By default, unique is set to true, and can be disabled using this method.
-func (_q *UserQuery) Unique(unique bool) *UserQuery {
+func (_q *RefreshTokenQuery) Unique(unique bool) *RefreshTokenQuery {
 	_q.ctx.Unique = &unique
 	return _q
 }
 
 // Order specifies how the records should be ordered.
-func (_q *UserQuery) Order(o ...user.OrderOption) *UserQuery {
+func (_q *RefreshTokenQuery) Order(o ...refresh_token.OrderOption) *RefreshTokenQuery {
 	_q.order = append(_q.order, o...)
 	return _q
 }
 
-// QueryRefreshTokens chains the current query on the "refresh_tokens" edge.
-func (_q *UserQuery) QueryRefreshTokens() *RefreshTokenQuery {
-	query := (&RefreshTokenClient{config: _q.config}).Query()
+// QueryOwner chains the current query on the "owner" edge.
+func (_q *RefreshTokenQuery) QueryOwner() *UserQuery {
+	query := (&UserClient{config: _q.config}).Query()
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := _q.prepareQuery(ctx); err != nil {
 			return nil, err
@@ -74,9 +74,9 @@ func (_q *UserQuery) QueryRefreshTokens() *RefreshTokenQuery {
 			return nil, err
 		}
 		step := sqlgraph.NewStep(
-			sqlgraph.From(user.Table, user.FieldID, selector),
-			sqlgraph.To(refresh_token.Table, refresh_token.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, user.RefreshTokensTable, user.RefreshTokensColumn),
+			sqlgraph.From(refresh_token.Table, refresh_token.FieldID, selector),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, refresh_token.OwnerTable, refresh_token.OwnerColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -84,21 +84,21 @@ func (_q *UserQuery) QueryRefreshTokens() *RefreshTokenQuery {
 	return query
 }
 
-// First returns the first User entity from the query.
-// Returns a *NotFoundError when no User was found.
-func (_q *UserQuery) First(ctx context.Context) (*User, error) {
+// First returns the first Refresh_Token entity from the query.
+// Returns a *NotFoundError when no Refresh_Token was found.
+func (_q *RefreshTokenQuery) First(ctx context.Context) (*Refresh_Token, error) {
 	nodes, err := _q.Limit(1).All(setContextOp(ctx, _q.ctx, ent.OpQueryFirst))
 	if err != nil {
 		return nil, err
 	}
 	if len(nodes) == 0 {
-		return nil, &NotFoundError{user.Label}
+		return nil, &NotFoundError{refresh_token.Label}
 	}
 	return nodes[0], nil
 }
 
 // FirstX is like First, but panics if an error occurs.
-func (_q *UserQuery) FirstX(ctx context.Context) *User {
+func (_q *RefreshTokenQuery) FirstX(ctx context.Context) *Refresh_Token {
 	node, err := _q.First(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -106,22 +106,22 @@ func (_q *UserQuery) FirstX(ctx context.Context) *User {
 	return node
 }
 
-// FirstID returns the first User ID from the query.
-// Returns a *NotFoundError when no User ID was found.
-func (_q *UserQuery) FirstID(ctx context.Context) (id uuid.UUID, err error) {
-	var ids []uuid.UUID
+// FirstID returns the first Refresh_Token ID from the query.
+// Returns a *NotFoundError when no Refresh_Token ID was found.
+func (_q *RefreshTokenQuery) FirstID(ctx context.Context) (id int, err error) {
+	var ids []int
 	if ids, err = _q.Limit(1).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryFirstID)); err != nil {
 		return
 	}
 	if len(ids) == 0 {
-		err = &NotFoundError{user.Label}
+		err = &NotFoundError{refresh_token.Label}
 		return
 	}
 	return ids[0], nil
 }
 
 // FirstIDX is like FirstID, but panics if an error occurs.
-func (_q *UserQuery) FirstIDX(ctx context.Context) uuid.UUID {
+func (_q *RefreshTokenQuery) FirstIDX(ctx context.Context) int {
 	id, err := _q.FirstID(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -129,10 +129,10 @@ func (_q *UserQuery) FirstIDX(ctx context.Context) uuid.UUID {
 	return id
 }
 
-// Only returns a single User entity found by the query, ensuring it only returns one.
-// Returns a *NotSingularError when more than one User entity is found.
-// Returns a *NotFoundError when no User entities are found.
-func (_q *UserQuery) Only(ctx context.Context) (*User, error) {
+// Only returns a single Refresh_Token entity found by the query, ensuring it only returns one.
+// Returns a *NotSingularError when more than one Refresh_Token entity is found.
+// Returns a *NotFoundError when no Refresh_Token entities are found.
+func (_q *RefreshTokenQuery) Only(ctx context.Context) (*Refresh_Token, error) {
 	nodes, err := _q.Limit(2).All(setContextOp(ctx, _q.ctx, ent.OpQueryOnly))
 	if err != nil {
 		return nil, err
@@ -141,14 +141,14 @@ func (_q *UserQuery) Only(ctx context.Context) (*User, error) {
 	case 1:
 		return nodes[0], nil
 	case 0:
-		return nil, &NotFoundError{user.Label}
+		return nil, &NotFoundError{refresh_token.Label}
 	default:
-		return nil, &NotSingularError{user.Label}
+		return nil, &NotSingularError{refresh_token.Label}
 	}
 }
 
 // OnlyX is like Only, but panics if an error occurs.
-func (_q *UserQuery) OnlyX(ctx context.Context) *User {
+func (_q *RefreshTokenQuery) OnlyX(ctx context.Context) *Refresh_Token {
 	node, err := _q.Only(ctx)
 	if err != nil {
 		panic(err)
@@ -156,11 +156,11 @@ func (_q *UserQuery) OnlyX(ctx context.Context) *User {
 	return node
 }
 
-// OnlyID is like Only, but returns the only User ID in the query.
-// Returns a *NotSingularError when more than one User ID is found.
+// OnlyID is like Only, but returns the only Refresh_Token ID in the query.
+// Returns a *NotSingularError when more than one Refresh_Token ID is found.
 // Returns a *NotFoundError when no entities are found.
-func (_q *UserQuery) OnlyID(ctx context.Context) (id uuid.UUID, err error) {
-	var ids []uuid.UUID
+func (_q *RefreshTokenQuery) OnlyID(ctx context.Context) (id int, err error) {
+	var ids []int
 	if ids, err = _q.Limit(2).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryOnlyID)); err != nil {
 		return
 	}
@@ -168,15 +168,15 @@ func (_q *UserQuery) OnlyID(ctx context.Context) (id uuid.UUID, err error) {
 	case 1:
 		id = ids[0]
 	case 0:
-		err = &NotFoundError{user.Label}
+		err = &NotFoundError{refresh_token.Label}
 	default:
-		err = &NotSingularError{user.Label}
+		err = &NotSingularError{refresh_token.Label}
 	}
 	return
 }
 
 // OnlyIDX is like OnlyID, but panics if an error occurs.
-func (_q *UserQuery) OnlyIDX(ctx context.Context) uuid.UUID {
+func (_q *RefreshTokenQuery) OnlyIDX(ctx context.Context) int {
 	id, err := _q.OnlyID(ctx)
 	if err != nil {
 		panic(err)
@@ -184,18 +184,18 @@ func (_q *UserQuery) OnlyIDX(ctx context.Context) uuid.UUID {
 	return id
 }
 
-// All executes the query and returns a list of Users.
-func (_q *UserQuery) All(ctx context.Context) ([]*User, error) {
+// All executes the query and returns a list of Refresh_Tokens.
+func (_q *RefreshTokenQuery) All(ctx context.Context) ([]*Refresh_Token, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryAll)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
-	qr := querierAll[[]*User, *UserQuery]()
-	return withInterceptors[[]*User](ctx, _q, qr, _q.inters)
+	qr := querierAll[[]*Refresh_Token, *RefreshTokenQuery]()
+	return withInterceptors[[]*Refresh_Token](ctx, _q, qr, _q.inters)
 }
 
 // AllX is like All, but panics if an error occurs.
-func (_q *UserQuery) AllX(ctx context.Context) []*User {
+func (_q *RefreshTokenQuery) AllX(ctx context.Context) []*Refresh_Token {
 	nodes, err := _q.All(ctx)
 	if err != nil {
 		panic(err)
@@ -203,20 +203,20 @@ func (_q *UserQuery) AllX(ctx context.Context) []*User {
 	return nodes
 }
 
-// IDs executes the query and returns a list of User IDs.
-func (_q *UserQuery) IDs(ctx context.Context) (ids []uuid.UUID, err error) {
+// IDs executes the query and returns a list of Refresh_Token IDs.
+func (_q *RefreshTokenQuery) IDs(ctx context.Context) (ids []int, err error) {
 	if _q.ctx.Unique == nil && _q.path != nil {
 		_q.Unique(true)
 	}
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryIDs)
-	if err = _q.Select(user.FieldID).Scan(ctx, &ids); err != nil {
+	if err = _q.Select(refresh_token.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
 }
 
 // IDsX is like IDs, but panics if an error occurs.
-func (_q *UserQuery) IDsX(ctx context.Context) []uuid.UUID {
+func (_q *RefreshTokenQuery) IDsX(ctx context.Context) []int {
 	ids, err := _q.IDs(ctx)
 	if err != nil {
 		panic(err)
@@ -225,16 +225,16 @@ func (_q *UserQuery) IDsX(ctx context.Context) []uuid.UUID {
 }
 
 // Count returns the count of the given query.
-func (_q *UserQuery) Count(ctx context.Context) (int, error) {
+func (_q *RefreshTokenQuery) Count(ctx context.Context) (int, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryCount)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
-	return withInterceptors[int](ctx, _q, querierCount[*UserQuery](), _q.inters)
+	return withInterceptors[int](ctx, _q, querierCount[*RefreshTokenQuery](), _q.inters)
 }
 
 // CountX is like Count, but panics if an error occurs.
-func (_q *UserQuery) CountX(ctx context.Context) int {
+func (_q *RefreshTokenQuery) CountX(ctx context.Context) int {
 	count, err := _q.Count(ctx)
 	if err != nil {
 		panic(err)
@@ -243,7 +243,7 @@ func (_q *UserQuery) CountX(ctx context.Context) int {
 }
 
 // Exist returns true if the query has elements in the graph.
-func (_q *UserQuery) Exist(ctx context.Context) (bool, error) {
+func (_q *RefreshTokenQuery) Exist(ctx context.Context) (bool, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryExist)
 	switch _, err := _q.FirstID(ctx); {
 	case IsNotFound(err):
@@ -256,7 +256,7 @@ func (_q *UserQuery) Exist(ctx context.Context) (bool, error) {
 }
 
 // ExistX is like Exist, but panics if an error occurs.
-func (_q *UserQuery) ExistX(ctx context.Context) bool {
+func (_q *RefreshTokenQuery) ExistX(ctx context.Context) bool {
 	exist, err := _q.Exist(ctx)
 	if err != nil {
 		panic(err)
@@ -264,33 +264,33 @@ func (_q *UserQuery) ExistX(ctx context.Context) bool {
 	return exist
 }
 
-// Clone returns a duplicate of the UserQuery builder, including all associated steps. It can be
+// Clone returns a duplicate of the RefreshTokenQuery builder, including all associated steps. It can be
 // used to prepare common query builders and use them differently after the clone is made.
-func (_q *UserQuery) Clone() *UserQuery {
+func (_q *RefreshTokenQuery) Clone() *RefreshTokenQuery {
 	if _q == nil {
 		return nil
 	}
-	return &UserQuery{
-		config:            _q.config,
-		ctx:               _q.ctx.Clone(),
-		order:             append([]user.OrderOption{}, _q.order...),
-		inters:            append([]Interceptor{}, _q.inters...),
-		predicates:        append([]predicate.User{}, _q.predicates...),
-		withRefreshTokens: _q.withRefreshTokens.Clone(),
+	return &RefreshTokenQuery{
+		config:     _q.config,
+		ctx:        _q.ctx.Clone(),
+		order:      append([]refresh_token.OrderOption{}, _q.order...),
+		inters:     append([]Interceptor{}, _q.inters...),
+		predicates: append([]predicate.Refresh_Token{}, _q.predicates...),
+		withOwner:  _q.withOwner.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
 	}
 }
 
-// WithRefreshTokens tells the query-builder to eager-load the nodes that are connected to
-// the "refresh_tokens" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *UserQuery) WithRefreshTokens(opts ...func(*RefreshTokenQuery)) *UserQuery {
-	query := (&RefreshTokenClient{config: _q.config}).Query()
+// WithOwner tells the query-builder to eager-load the nodes that are connected to
+// the "owner" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *RefreshTokenQuery) WithOwner(opts ...func(*UserQuery)) *RefreshTokenQuery {
+	query := (&UserClient{config: _q.config}).Query()
 	for _, opt := range opts {
 		opt(query)
 	}
-	_q.withRefreshTokens = query
+	_q.withOwner = query
 	return _q
 }
 
@@ -300,19 +300,19 @@ func (_q *UserQuery) WithRefreshTokens(opts ...func(*RefreshTokenQuery)) *UserQu
 // Example:
 //
 //	var v []struct {
-//		Email string `json:"email,omitempty"`
+//		TokenHash string `json:"token_hash,omitempty"`
 //		Count int `json:"count,omitempty"`
 //	}
 //
-//	client.User.Query().
-//		GroupBy(user.FieldEmail).
+//	client.RefreshToken.Query().
+//		GroupBy(refresh_token.FieldTokenHash).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
-func (_q *UserQuery) GroupBy(field string, fields ...string) *UserGroupBy {
+func (_q *RefreshTokenQuery) GroupBy(field string, fields ...string) *RefreshTokenGroupBy {
 	_q.ctx.Fields = append([]string{field}, fields...)
-	grbuild := &UserGroupBy{build: _q}
+	grbuild := &RefreshTokenGroupBy{build: _q}
 	grbuild.flds = &_q.ctx.Fields
-	grbuild.label = user.Label
+	grbuild.label = refresh_token.Label
 	grbuild.scan = grbuild.Scan
 	return grbuild
 }
@@ -323,26 +323,26 @@ func (_q *UserQuery) GroupBy(field string, fields ...string) *UserGroupBy {
 // Example:
 //
 //	var v []struct {
-//		Email string `json:"email,omitempty"`
+//		TokenHash string `json:"token_hash,omitempty"`
 //	}
 //
-//	client.User.Query().
-//		Select(user.FieldEmail).
+//	client.RefreshToken.Query().
+//		Select(refresh_token.FieldTokenHash).
 //		Scan(ctx, &v)
-func (_q *UserQuery) Select(fields ...string) *UserSelect {
+func (_q *RefreshTokenQuery) Select(fields ...string) *RefreshTokenSelect {
 	_q.ctx.Fields = append(_q.ctx.Fields, fields...)
-	sbuild := &UserSelect{UserQuery: _q}
-	sbuild.label = user.Label
+	sbuild := &RefreshTokenSelect{RefreshTokenQuery: _q}
+	sbuild.label = refresh_token.Label
 	sbuild.flds, sbuild.scan = &_q.ctx.Fields, sbuild.Scan
 	return sbuild
 }
 
-// Aggregate returns a UserSelect configured with the given aggregations.
-func (_q *UserQuery) Aggregate(fns ...AggregateFunc) *UserSelect {
+// Aggregate returns a RefreshTokenSelect configured with the given aggregations.
+func (_q *RefreshTokenQuery) Aggregate(fns ...AggregateFunc) *RefreshTokenSelect {
 	return _q.Select().Aggregate(fns...)
 }
 
-func (_q *UserQuery) prepareQuery(ctx context.Context) error {
+func (_q *RefreshTokenQuery) prepareQuery(ctx context.Context) error {
 	for _, inter := range _q.inters {
 		if inter == nil {
 			return fmt.Errorf("ent: uninitialized interceptor (forgotten import ent/runtime?)")
@@ -354,7 +354,7 @@ func (_q *UserQuery) prepareQuery(ctx context.Context) error {
 		}
 	}
 	for _, f := range _q.ctx.Fields {
-		if !user.ValidColumn(f) {
+		if !refresh_token.ValidColumn(f) {
 			return &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
 		}
 	}
@@ -368,19 +368,26 @@ func (_q *UserQuery) prepareQuery(ctx context.Context) error {
 	return nil
 }
 
-func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, error) {
+func (_q *RefreshTokenQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Refresh_Token, error) {
 	var (
-		nodes       = []*User{}
+		nodes       = []*Refresh_Token{}
+		withFKs     = _q.withFKs
 		_spec       = _q.querySpec()
 		loadedTypes = [1]bool{
-			_q.withRefreshTokens != nil,
+			_q.withOwner != nil,
 		}
 	)
+	if _q.withOwner != nil {
+		withFKs = true
+	}
+	if withFKs {
+		_spec.Node.Columns = append(_spec.Node.Columns, refresh_token.ForeignKeys...)
+	}
 	_spec.ScanValues = func(columns []string) ([]any, error) {
-		return (*User).scanValues(nil, columns)
+		return (*Refresh_Token).scanValues(nil, columns)
 	}
 	_spec.Assign = func(columns []string, values []any) error {
-		node := &User{config: _q.config}
+		node := &Refresh_Token{config: _q.config}
 		nodes = append(nodes, node)
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
@@ -394,49 +401,49 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
-	if query := _q.withRefreshTokens; query != nil {
-		if err := _q.loadRefreshTokens(ctx, query, nodes,
-			func(n *User) { n.Edges.RefreshTokens = []*Refresh_Token{} },
-			func(n *User, e *Refresh_Token) { n.Edges.RefreshTokens = append(n.Edges.RefreshTokens, e) }); err != nil {
+	if query := _q.withOwner; query != nil {
+		if err := _q.loadOwner(ctx, query, nodes, nil,
+			func(n *Refresh_Token, e *User) { n.Edges.Owner = e }); err != nil {
 			return nil, err
 		}
 	}
 	return nodes, nil
 }
 
-func (_q *UserQuery) loadRefreshTokens(ctx context.Context, query *RefreshTokenQuery, nodes []*User, init func(*User), assign func(*User, *Refresh_Token)) error {
-	fks := make([]driver.Value, 0, len(nodes))
-	nodeids := make(map[uuid.UUID]*User)
+func (_q *RefreshTokenQuery) loadOwner(ctx context.Context, query *UserQuery, nodes []*Refresh_Token, init func(*Refresh_Token), assign func(*Refresh_Token, *User)) error {
+	ids := make([]uuid.UUID, 0, len(nodes))
+	nodeids := make(map[uuid.UUID][]*Refresh_Token)
 	for i := range nodes {
-		fks = append(fks, nodes[i].ID)
-		nodeids[nodes[i].ID] = nodes[i]
-		if init != nil {
-			init(nodes[i])
+		if nodes[i].user_refresh_tokens == nil {
+			continue
 		}
+		fk := *nodes[i].user_refresh_tokens
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
 	}
-	query.withFKs = true
-	query.Where(predicate.Refresh_Token(func(s *sql.Selector) {
-		s.Where(sql.InValues(s.C(user.RefreshTokensColumn), fks...))
-	}))
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(user.IDIn(ids...))
 	neighbors, err := query.All(ctx)
 	if err != nil {
 		return err
 	}
 	for _, n := range neighbors {
-		fk := n.user_refresh_tokens
-		if fk == nil {
-			return fmt.Errorf(`foreign-key "user_refresh_tokens" is nil for node %v`, n.ID)
-		}
-		node, ok := nodeids[*fk]
+		nodes, ok := nodeids[n.ID]
 		if !ok {
-			return fmt.Errorf(`unexpected referenced foreign-key "user_refresh_tokens" returned %v for node %v`, *fk, n.ID)
+			return fmt.Errorf(`unexpected foreign-key "user_refresh_tokens" returned %v`, n.ID)
 		}
-		assign(node, n)
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
 	}
 	return nil
 }
 
-func (_q *UserQuery) sqlCount(ctx context.Context) (int, error) {
+func (_q *RefreshTokenQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
 	_spec.Node.Columns = _q.ctx.Fields
 	if len(_q.ctx.Fields) > 0 {
@@ -445,8 +452,8 @@ func (_q *UserQuery) sqlCount(ctx context.Context) (int, error) {
 	return sqlgraph.CountNodes(ctx, _q.driver, _spec)
 }
 
-func (_q *UserQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := sqlgraph.NewQuerySpec(user.Table, user.Columns, sqlgraph.NewFieldSpec(user.FieldID, field.TypeUUID))
+func (_q *RefreshTokenQuery) querySpec() *sqlgraph.QuerySpec {
+	_spec := sqlgraph.NewQuerySpec(refresh_token.Table, refresh_token.Columns, sqlgraph.NewFieldSpec(refresh_token.FieldID, field.TypeInt))
 	_spec.From = _q.sql
 	if unique := _q.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
@@ -455,9 +462,9 @@ func (_q *UserQuery) querySpec() *sqlgraph.QuerySpec {
 	}
 	if fields := _q.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
-		_spec.Node.Columns = append(_spec.Node.Columns, user.FieldID)
+		_spec.Node.Columns = append(_spec.Node.Columns, refresh_token.FieldID)
 		for i := range fields {
-			if fields[i] != user.FieldID {
+			if fields[i] != refresh_token.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
 			}
 		}
@@ -485,12 +492,12 @@ func (_q *UserQuery) querySpec() *sqlgraph.QuerySpec {
 	return _spec
 }
 
-func (_q *UserQuery) sqlQuery(ctx context.Context) *sql.Selector {
+func (_q *RefreshTokenQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	builder := sql.Dialect(_q.driver.Dialect())
-	t1 := builder.Table(user.Table)
+	t1 := builder.Table(refresh_token.Table)
 	columns := _q.ctx.Fields
 	if len(columns) == 0 {
-		columns = user.Columns
+		columns = refresh_token.Columns
 	}
 	selector := builder.Select(t1.Columns(columns...)...).From(t1)
 	if _q.sql != nil {
@@ -517,28 +524,28 @@ func (_q *UserQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	return selector
 }
 
-// UserGroupBy is the group-by builder for User entities.
-type UserGroupBy struct {
+// RefreshTokenGroupBy is the group-by builder for Refresh_Token entities.
+type RefreshTokenGroupBy struct {
 	selector
-	build *UserQuery
+	build *RefreshTokenQuery
 }
 
 // Aggregate adds the given aggregation functions to the group-by query.
-func (_g *UserGroupBy) Aggregate(fns ...AggregateFunc) *UserGroupBy {
+func (_g *RefreshTokenGroupBy) Aggregate(fns ...AggregateFunc) *RefreshTokenGroupBy {
 	_g.fns = append(_g.fns, fns...)
 	return _g
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (_g *UserGroupBy) Scan(ctx context.Context, v any) error {
+func (_g *RefreshTokenGroupBy) Scan(ctx context.Context, v any) error {
 	ctx = setContextOp(ctx, _g.build.ctx, ent.OpQueryGroupBy)
 	if err := _g.build.prepareQuery(ctx); err != nil {
 		return err
 	}
-	return scanWithInterceptors[*UserQuery, *UserGroupBy](ctx, _g.build, _g, _g.build.inters, v)
+	return scanWithInterceptors[*RefreshTokenQuery, *RefreshTokenGroupBy](ctx, _g.build, _g, _g.build.inters, v)
 }
 
-func (_g *UserGroupBy) sqlScan(ctx context.Context, root *UserQuery, v any) error {
+func (_g *RefreshTokenGroupBy) sqlScan(ctx context.Context, root *RefreshTokenQuery, v any) error {
 	selector := root.sqlQuery(ctx).Select()
 	aggregation := make([]string, 0, len(_g.fns))
 	for _, fn := range _g.fns {
@@ -565,28 +572,28 @@ func (_g *UserGroupBy) sqlScan(ctx context.Context, root *UserQuery, v any) erro
 	return sql.ScanSlice(rows, v)
 }
 
-// UserSelect is the builder for selecting fields of User entities.
-type UserSelect struct {
-	*UserQuery
+// RefreshTokenSelect is the builder for selecting fields of RefreshToken entities.
+type RefreshTokenSelect struct {
+	*RefreshTokenQuery
 	selector
 }
 
 // Aggregate adds the given aggregation functions to the selector query.
-func (_s *UserSelect) Aggregate(fns ...AggregateFunc) *UserSelect {
+func (_s *RefreshTokenSelect) Aggregate(fns ...AggregateFunc) *RefreshTokenSelect {
 	_s.fns = append(_s.fns, fns...)
 	return _s
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (_s *UserSelect) Scan(ctx context.Context, v any) error {
+func (_s *RefreshTokenSelect) Scan(ctx context.Context, v any) error {
 	ctx = setContextOp(ctx, _s.ctx, ent.OpQuerySelect)
 	if err := _s.prepareQuery(ctx); err != nil {
 		return err
 	}
-	return scanWithInterceptors[*UserQuery, *UserSelect](ctx, _s.UserQuery, _s, _s.inters, v)
+	return scanWithInterceptors[*RefreshTokenQuery, *RefreshTokenSelect](ctx, _s.RefreshTokenQuery, _s, _s.inters, v)
 }
 
-func (_s *UserSelect) sqlScan(ctx context.Context, root *UserQuery, v any) error {
+func (_s *RefreshTokenSelect) sqlScan(ctx context.Context, root *RefreshTokenQuery, v any) error {
 	selector := root.sqlQuery(ctx)
 	aggregation := make([]string, 0, len(_s.fns))
 	for _, fn := range _s.fns {

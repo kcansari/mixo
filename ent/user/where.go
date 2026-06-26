@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 	"github.com/kcansari/mixo/ent/predicate"
 )
@@ -743,6 +744,29 @@ func IsAdminEQ(v bool) predicate.User {
 // IsAdminNEQ applies the NEQ predicate on the "is_admin" field.
 func IsAdminNEQ(v bool) predicate.User {
 	return predicate.User(sql.FieldNEQ(FieldIsAdmin, v))
+}
+
+// HasRefreshTokens applies the HasEdge predicate on the "refresh_tokens" edge.
+func HasRefreshTokens() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, RefreshTokensTable, RefreshTokensColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasRefreshTokensWith applies the HasEdge predicate on the "refresh_tokens" edge with a given conditions (other predicates).
+func HasRefreshTokensWith(preds ...predicate.Refresh_Token) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newRefreshTokensStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
 }
 
 // And groups predicates with the AND operator between them.

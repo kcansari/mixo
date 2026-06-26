@@ -15,6 +15,8 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
+	"github.com/kcansari/mixo/ent/refresh_token"
 	"github.com/kcansari/mixo/ent/user"
 )
 
@@ -23,6 +25,8 @@ type Client struct {
 	config
 	// Schema is the client for creating, migrating and dropping schema.
 	Schema *migrate.Schema
+	// Refresh_Token is the client for interacting with the Refresh_Token builders.
+	Refresh_Token *RefreshTokenClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
 }
@@ -36,6 +40,7 @@ func NewClient(opts ...Option) *Client {
 
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
+	c.Refresh_Token = NewRefreshTokenClient(c.config)
 	c.User = NewUserClient(c.config)
 }
 
@@ -127,9 +132,10 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:    ctx,
-		config: cfg,
-		User:   NewUserClient(cfg),
+		ctx:           ctx,
+		config:        cfg,
+		Refresh_Token: NewRefreshTokenClient(cfg),
+		User:          NewUserClient(cfg),
 	}, nil
 }
 
@@ -147,16 +153,17 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:    ctx,
-		config: cfg,
-		User:   NewUserClient(cfg),
+		ctx:           ctx,
+		config:        cfg,
+		Refresh_Token: NewRefreshTokenClient(cfg),
+		User:          NewUserClient(cfg),
 	}, nil
 }
 
 // Debug returns a new debug-client. It's used to get verbose logging on specific operations.
 //
 //	client.Debug().
-//		User.
+//		Refresh_Token.
 //		Query().
 //		Count(ctx)
 func (c *Client) Debug() *Client {
@@ -178,22 +185,175 @@ func (c *Client) Close() error {
 // Use adds the mutation hooks to all the entity clients.
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
+	c.Refresh_Token.Use(hooks...)
 	c.User.Use(hooks...)
 }
 
 // Intercept adds the query interceptors to all the entity clients.
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
+	c.Refresh_Token.Intercept(interceptors...)
 	c.User.Intercept(interceptors...)
 }
 
 // Mutate implements the ent.Mutator interface.
 func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
+	case *RefreshTokenMutation:
+		return c.Refresh_Token.mutate(ctx, m)
 	case *UserMutation:
 		return c.User.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
+	}
+}
+
+// RefreshTokenClient is a client for the Refresh_Token schema.
+type RefreshTokenClient struct {
+	config
+}
+
+// NewRefreshTokenClient returns a client for the Refresh_Token from the given config.
+func NewRefreshTokenClient(c config) *RefreshTokenClient {
+	return &RefreshTokenClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `refresh_token.Hooks(f(g(h())))`.
+func (c *RefreshTokenClient) Use(hooks ...Hook) {
+	c.hooks.Refresh_Token = append(c.hooks.Refresh_Token, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `refresh_token.Intercept(f(g(h())))`.
+func (c *RefreshTokenClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Refresh_Token = append(c.inters.Refresh_Token, interceptors...)
+}
+
+// Create returns a builder for creating a Refresh_Token entity.
+func (c *RefreshTokenClient) Create() *RefreshTokenCreate {
+	mutation := newRefreshTokenMutation(c.config, OpCreate)
+	return &RefreshTokenCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Refresh_Token entities.
+func (c *RefreshTokenClient) CreateBulk(builders ...*RefreshTokenCreate) *RefreshTokenCreateBulk {
+	return &RefreshTokenCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *RefreshTokenClient) MapCreateBulk(slice any, setFunc func(*RefreshTokenCreate, int)) *RefreshTokenCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &RefreshTokenCreateBulk{err: fmt.Errorf("calling to RefreshTokenClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*RefreshTokenCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &RefreshTokenCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Refresh_Token.
+func (c *RefreshTokenClient) Update() *RefreshTokenUpdate {
+	mutation := newRefreshTokenMutation(c.config, OpUpdate)
+	return &RefreshTokenUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *RefreshTokenClient) UpdateOne(_m *Refresh_Token) *RefreshTokenUpdateOne {
+	mutation := newRefreshTokenMutation(c.config, OpUpdateOne, withRefresh_Token(_m))
+	return &RefreshTokenUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *RefreshTokenClient) UpdateOneID(id int) *RefreshTokenUpdateOne {
+	mutation := newRefreshTokenMutation(c.config, OpUpdateOne, withRefresh_TokenID(id))
+	return &RefreshTokenUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Refresh_Token.
+func (c *RefreshTokenClient) Delete() *RefreshTokenDelete {
+	mutation := newRefreshTokenMutation(c.config, OpDelete)
+	return &RefreshTokenDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *RefreshTokenClient) DeleteOne(_m *Refresh_Token) *RefreshTokenDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *RefreshTokenClient) DeleteOneID(id int) *RefreshTokenDeleteOne {
+	builder := c.Delete().Where(refresh_token.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &RefreshTokenDeleteOne{builder}
+}
+
+// Query returns a query builder for Refresh_Token.
+func (c *RefreshTokenClient) Query() *RefreshTokenQuery {
+	return &RefreshTokenQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeRefreshToken},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Refresh_Token entity by its id.
+func (c *RefreshTokenClient) Get(ctx context.Context, id int) (*Refresh_Token, error) {
+	return c.Query().Where(refresh_token.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *RefreshTokenClient) GetX(ctx context.Context, id int) *Refresh_Token {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryOwner queries the owner edge of a Refresh_Token.
+func (c *RefreshTokenClient) QueryOwner(_m *Refresh_Token) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(refresh_token.Table, refresh_token.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, refresh_token.OwnerTable, refresh_token.OwnerColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *RefreshTokenClient) Hooks() []Hook {
+	return c.hooks.Refresh_Token
+}
+
+// Interceptors returns the client interceptors.
+func (c *RefreshTokenClient) Interceptors() []Interceptor {
+	return c.inters.Refresh_Token
+}
+
+func (c *RefreshTokenClient) mutate(ctx context.Context, m *RefreshTokenMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&RefreshTokenCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&RefreshTokenUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&RefreshTokenUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&RefreshTokenDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Refresh_Token mutation op: %q", m.Op())
 	}
 }
 
@@ -305,6 +465,22 @@ func (c *UserClient) GetX(ctx context.Context, id uuid.UUID) *User {
 	return obj
 }
 
+// QueryRefreshTokens queries the refresh_tokens edge of a User.
+func (c *UserClient) QueryRefreshTokens(_m *User) *RefreshTokenQuery {
+	query := (&RefreshTokenClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(refresh_token.Table, refresh_token.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.RefreshTokensTable, user.RefreshTokensColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *UserClient) Hooks() []Hook {
 	return c.hooks.User
@@ -333,9 +509,9 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		User []ent.Hook
+		Refresh_Token, User []ent.Hook
 	}
 	inters struct {
-		User []ent.Interceptor
+		Refresh_Token, User []ent.Interceptor
 	}
 )
