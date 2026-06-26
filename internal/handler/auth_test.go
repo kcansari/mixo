@@ -11,9 +11,11 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/google/uuid"
 	"github.com/kcansari/mixo/internal/domain"
 	"github.com/kcansari/mixo/internal/handler/mocks"
 	"github.com/kcansari/mixo/internal/middleware"
+	"github.com/kcansari/mixo/internal/security"
 
 	gomock "go.uber.org/mock/gomock"
 )
@@ -174,7 +176,7 @@ func TestAuth_GoogleCallback(t *testing.T) {
 }
 
 func TestAuth_Logout(t *testing.T) {
-	userID := "user-id"
+	userID := uuid.New()
 	frontendURL := "http://localhost:3000"
 	errService := errors.New("service error")
 
@@ -182,7 +184,7 @@ func TestAuth_Logout(t *testing.T) {
 		name       string
 		setup      func(ctx context.Context, mockAuthSvc *mocks.MockAuthSvc)
 		wantStatus int
-		wantCookie *http.Cookie
+		wantCookie []*http.Cookie
 		wantURL    string
 		setCookie  bool
 	}{
@@ -192,13 +194,25 @@ func TestAuth_Logout(t *testing.T) {
 				mockAuthSvc.EXPECT().Logout(ctx, userID).Return(nil).Times(1)
 			},
 			wantStatus: http.StatusFound,
-			wantCookie: &http.Cookie{
-				Name:     "sid",
-				Value:    "",
-				Path:     "/",
-				MaxAge:   -1,
-				Expires:  time.Unix(0, 0),
-				HttpOnly: true,
+			wantCookie: []*http.Cookie{
+				{
+					Name:     string(security.TokenTypeAccess),
+					Value:    "",
+					Path:     "/",
+					MaxAge:   middleware.DeleteCookieNow,
+					HttpOnly: true,
+					Secure:   true,
+					SameSite: http.SameSiteStrictMode,
+				},
+				{
+					Name:     string(security.TokenTypeRefresh),
+					Value:    "",
+					Path:     "/",
+					MaxAge:   middleware.DeleteCookieNow,
+					HttpOnly: true,
+					Secure:   true,
+					SameSite: http.SameSiteStrictMode,
+				},
 			},
 			wantURL:   frontendURL,
 			setCookie: true,
@@ -220,7 +234,7 @@ func TestAuth_Logout(t *testing.T) {
 			req := httptest.NewRequest(http.MethodPost, "/auth/google/logout", nil)
 
 			w := httptest.NewRecorder()
-			ctx := context.WithValue(req.Context(), middleware.ContextKeyUserID, userID)
+			ctx := context.WithValue(req.Context(), middleware.ContextKeyUserID, userID.String())
 
 			if tt.setup != nil {
 				tt.setup(ctx, mockAuthSvc)
@@ -244,7 +258,7 @@ func TestAuth_Logout(t *testing.T) {
 			if tt.wantCookie != nil {
 				cookies := resp.Cookies()
 
-				if diff := cmp.Diff([]*http.Cookie{tt.wantCookie}, cookies, cmpopts.IgnoreFields(http.Cookie{}, "Raw", "RawExpires")); diff != "" {
+				if diff := cmp.Diff(tt.wantCookie, cookies, cmpopts.IgnoreFields(http.Cookie{}, "Raw", "RawExpires")); diff != "" {
 					t.Errorf("cookies mismatch (-want +got):\n%s", diff)
 				}
 			}

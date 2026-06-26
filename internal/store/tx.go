@@ -39,10 +39,3 @@ func (t *Transactor) WithTx(ctx context.Context, fn func(ctx context.Context) er
 
 	return tx.Commit()
 }
-
-func txFromCtx(ctx context.Context, fallback *ent.Client) *ent.Client {
-	if c, ok := ctx.Value(txKey{}).(*ent.Client); ok {
-		return c
-	}
-	return fallback
-}

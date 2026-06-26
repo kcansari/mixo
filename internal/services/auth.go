@@ -50,9 +50,8 @@ type Chiper interface {
 }
 
 type SessionManager interface {
-	Create(ctx context.Context, value string) (string, error)
-	Destroy(ctx context.Context, sid string) error
-	Get(ctx context.Context, sid string) (string, error)
+	Create(ctx context.Context, userID uuid.UUID) (domain.Tokens, error)
+	Destroy(ctx context.Context, userID uuid.UUID) error
 }
 
 type AuthUserStore interface {
@@ -85,44 +84,44 @@ func (a *Auth) GetGoogleRedirectURL(ctx context.Context) (url string, err error)
 	return url, nil
 }
 
-func (a *Auth) AuthenticateGoogle(ctx context.Context, code string, state string) (sessionID string, err error) {
+func (a *Auth) AuthenticateGoogle(ctx context.Context, code string, state string) (domain.Tokens, error) {
 
 	if strings.TrimSpace(code) == "" {
-		return "", ErrGoogleCodeRequired
+		return domain.Tokens{}, ErrGoogleCodeRequired
 	}
 	if strings.TrimSpace(state) == "" {
-		return "", ErrGoogleStateRequired
+		return domain.Tokens{}, ErrGoogleStateRequired
 	}
 
 	key, err := a.Cache.KeyCreator(outhGoogleTag, state)
 	if err != nil {
-		return "", err
+		return domain.Tokens{}, err
 	}
 
 	verifier, err := a.Cache.Get(ctx, key)
 	if err != nil {
-		return "", err
+		return domain.Tokens{}, err
 	}
 
 	err = a.Cache.Delete(ctx, key)
 	if err != nil {
-		return "", err
+		return domain.Tokens{}, err
 	}
 
 	token, err := a.OAuthGoogle.Exchange(ctx, code, verifier)
 	if err != nil {
-		return "", err
+		return domain.Tokens{}, err
 	}
 
 	user, err := a.OAuthGoogle.GetUserInfo(ctx, token)
 	if err != nil {
-		return "", err
+		return domain.Tokens{}, err
 	}
 
 	existingUser, err := a.UserStore.GetByProviderUserID(ctx, user.ID)
 	if err != nil {
 		if !errors.Is(err, store.ErrUserNotFound) {
-			return "", err
+			return domain.Tokens{}, err
 		}
 	}
 
@@ -132,7 +131,7 @@ func (a *Auth) AuthenticateGoogle(ctx context.Context, code string, state string
 
 		encryptedRefreshToken, err := a.Chiper.Encrypt(token.RefreshToken)
 		if err != nil {
-			return "", err
+			return domain.Tokens{}, err
 		}
 
 		userStore, err := a.UserStore.Create(ctx, domain.UserCreate{
@@ -148,7 +147,7 @@ func (a *Auth) AuthenticateGoogle(ctx context.Context, code string, state string
 			RefreshToken: encryptedRefreshToken,
 		})
 		if err != nil {
-			return "", err
+			return domain.Tokens{}, err
 		}
 		userID = userStore.ID
 
@@ -156,17 +155,17 @@ func (a *Auth) AuthenticateGoogle(ctx context.Context, code string, state string
 		userID = existingUser.ID
 	}
 
-	sessionID, err = a.SessionManager.Create(ctx, userID.String())
+	tokens, err := a.SessionManager.Create(ctx, userID)
 	if err != nil {
-		return "", err
+		return domain.Tokens{}, err
 	}
 
-	return sessionID, nil
+	return tokens, nil
 }
 
-func (a *Auth) Logout(ctx context.Context, sessionID string) error {
+func (a *Auth) Logout(ctx context.Context, userID uuid.UUID) error {
 
-	if err := a.SessionManager.Destroy(ctx, sessionID); err != nil {
+	if err := a.SessionManager.Destroy(ctx, userID); err != nil {
 		return err
 	}
 

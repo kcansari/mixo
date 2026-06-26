@@ -14,6 +14,7 @@ import (
 	reflect "reflect"
 	time "time"
 
+	uuid "github.com/google/uuid"
 	domain "github.com/kcansari/mixo/internal/domain"
 	oauth "github.com/kcansari/mixo/internal/oauth"
 	gomock "go.uber.org/mock/gomock"
@@ -251,47 +252,32 @@ func (m *MockSessionManager) EXPECT() *MockSessionManagerMockRecorder {
 }
 
 // Create mocks base method.
-func (m *MockSessionManager) Create(ctx context.Context, value string) (string, error) {
+func (m *MockSessionManager) Create(ctx context.Context, userID uuid.UUID) (domain.Tokens, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Create", ctx, value)
-	ret0, _ := ret[0].(string)
+	ret := m.ctrl.Call(m, "Create", ctx, userID)
+	ret0, _ := ret[0].(domain.Tokens)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Create indicates an expected call of Create.
-func (mr *MockSessionManagerMockRecorder) Create(ctx, value any) *gomock.Call {
+func (mr *MockSessionManagerMockRecorder) Create(ctx, userID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockSessionManager)(nil).Create), ctx, value)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockSessionManager)(nil).Create), ctx, userID)
 }
 
 // Destroy mocks base method.
-func (m *MockSessionManager) Destroy(ctx context.Context, sid string) error {
+func (m *MockSessionManager) Destroy(ctx context.Context, userID uuid.UUID) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Destroy", ctx, sid)
+	ret := m.ctrl.Call(m, "Destroy", ctx, userID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Destroy indicates an expected call of Destroy.
-func (mr *MockSessionManagerMockRecorder) Destroy(ctx, sid any) *gomock.Call {
+func (mr *MockSessionManagerMockRecorder) Destroy(ctx, userID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Destroy", reflect.TypeOf((*MockSessionManager)(nil).Destroy), ctx, sid)
-}
-
-// Get mocks base method.
-func (m *MockSessionManager) Get(ctx context.Context, sid string) (string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Get", ctx, sid)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Get indicates an expected call of Get.
-func (mr *MockSessionManagerMockRecorder) Get(ctx, sid any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockSessionManager)(nil).Get), ctx, sid)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Destroy", reflect.TypeOf((*MockSessionManager)(nil).Destroy), ctx, userID)
 }
 
 // MockAuthUserStore is a mock of AuthUserStore interface.

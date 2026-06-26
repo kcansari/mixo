@@ -26,6 +26,7 @@ import (
 	"github.com/kcansari/mixo/internal/routes"
 	"github.com/kcansari/mixo/internal/security"
 	"github.com/kcansari/mixo/internal/services"
+	"github.com/kcansari/mixo/internal/session"
 	"github.com/kcansari/mixo/internal/store"
 
 	"github.com/joho/godotenv"
@@ -114,6 +115,7 @@ func run() http.Handler {
 	r.Use(middleware.Timeout(60 * time.Second))
 
 	userStore := store.NewUsers(client)
+	refreshTokenStore := store.NewRefreshToken(client)
 
 	cacheSvc, err := cache.NewRedisClient(cache.RedisConfig{
 		Host:     cfg.DB.Redis.Host,
@@ -140,9 +142,13 @@ func run() http.Handler {
 		log.Fatal("cipher error:", err)
 	}
 
+	jwtSvc, err := security.NewJWTService(cfg.App.JWTSecret)
+	if err != nil {
+		log.Fatal("jwt service error:", err)
+	}
 	hmac := security.NewHmac(cfg.App.HMAC_SECRET_KEY)
 
-	sessionManager := security.NewSession(cacheSvc, hmac)
+	sessionManager := session.NewSession(jwtSvc, hmac, refreshTokenStore)
 
 	authSvc := services.NewAuth(
 		googleOAuth,
@@ -152,14 +158,14 @@ func run() http.Handler {
 		sessionManager,
 	)
 
-	userSvc := services.NewUser(userStore)
+	//userSvc := services.NewUser(userStore)
 
 	authHandler := handler.NewAuth(handler.Auth{
 		AuthSvc:     authSvc,
 		FrontendURL: cfg.App.FrontendURL,
 	})
 
-	authMiddleware := appmiddleware.NewAuth(sessionManager, userSvc)
+	authMiddleware := appmiddleware.NewAuth(sessionManager)
 
 	r.Mount("/auth", routes.AuthResource{Auth: authHandler, AuthMiddleware: authMiddleware}.Routes())
 

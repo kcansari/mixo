@@ -115,9 +115,9 @@ func TestAuth_AuthenticateGoogle(t *testing.T) {
 		state          = "test-state"
 		code           = "test-code"
 		verifier       = "test-verifier"
-		sessionHash    = "test-session-hash"
 		encryptedToken = "encrypted-refresh-token"
 		refreshToken   = "test-refresh-token"
+		accessToken    = "test-access-token"
 	)
 
 	errCacheGet := errors.New("cache get failed")
@@ -133,7 +133,10 @@ func TestAuth_AuthenticateGoogle(t *testing.T) {
 	existingUserID := uuid.New()
 	token := &oauth2.Token{RefreshToken: refreshToken}
 	verifierKey := outhGoogleTag + state
-	sessionID := "test-session-id"
+	tokens := domain.Tokens{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	}
 
 	user := oauth.GoogleUserInfo{
 		Email:         "test@example.com",
@@ -189,14 +192,14 @@ func TestAuth_AuthenticateGoogle(t *testing.T) {
 	}
 
 	tests := []struct {
-		name        string
-		wantSession bool
-		wantErr     error
-		setup       func(*mocks.MockOAuthGoogle, *mocks.MockCache, *mocks.MockAuthUserStore, *mocks.MockChiper, *mocks.MockSessionManager)
+		name       string
+		wantTokens domain.Tokens
+		wantErr    error
+		setup      func(*mocks.MockOAuthGoogle, *mocks.MockCache, *mocks.MockAuthUserStore, *mocks.MockChiper, *mocks.MockSessionManager)
 	}{
 		{
-			name:        "successfully authenticates a new user",
-			wantSession: true,
+			name:       "successfully authenticates a new user",
+			wantTokens: tokens,
 			setup: func(oauthMock *mocks.MockOAuthGoogle, cacheMock *mocks.MockCache, userStoreMock *mocks.MockAuthUserStore, chiperMock *mocks.MockChiper, sessionManagerMock *mocks.MockSessionManager) {
 				expectVerifier(cacheMock)
 				expectOAuth(oauthMock)
@@ -217,14 +220,14 @@ func TestAuth_AuthenticateGoogle(t *testing.T) {
 					Times(1)
 
 				sessionManagerMock.EXPECT().
-					Create(gomock.Any(), newUserID.String()).
-					Return(sessionID, nil).
+					Create(gomock.Any(), newUserID).
+					Return(tokens, nil).
 					Times(1)
 			},
 		},
 		{
-			name:        "successfully authenticates an existing user",
-			wantSession: true,
+			name:       "successfully authenticates an existing user",
+			wantTokens: tokens,
 			setup: func(oauthMock *mocks.MockOAuthGoogle, cacheMock *mocks.MockCache, userStoreMock *mocks.MockAuthUserStore, _ *mocks.MockChiper, sessionManagerMock *mocks.MockSessionManager) {
 				expectVerifier(cacheMock)
 				expectOAuth(oauthMock)
@@ -235,8 +238,8 @@ func TestAuth_AuthenticateGoogle(t *testing.T) {
 					Times(1)
 
 				sessionManagerMock.EXPECT().
-					Create(gomock.Any(), existingUserID.String()).
-					Return(sessionID, nil).
+					Create(gomock.Any(), existingUserID).
+					Return(tokens, nil).
 					Times(1)
 			},
 		},
@@ -371,8 +374,8 @@ func TestAuth_AuthenticateGoogle(t *testing.T) {
 					Times(1)
 
 				sessionManagerMock.EXPECT().
-					Create(gomock.Any(), existingUserID.String()).
-					Return(sessionID, errSessionCache).
+					Create(gomock.Any(), existingUserID).
+					Return(domain.Tokens{}, errSessionCache).
 					Times(1)
 
 			},
@@ -392,27 +395,21 @@ func TestAuth_AuthenticateGoogle(t *testing.T) {
 
 			auth := NewAuth(oauthMock, cacheMock, userStoreMock, chiperMock, sessionManagerMock)
 
-			gotSessionID, gotErr := auth.AuthenticateGoogle(context.Background(), code, state)
+			gotTokens, gotErr := auth.AuthenticateGoogle(context.Background(), code, state)
 
 			if !errors.Is(gotErr, tt.wantErr) {
 				t.Errorf("AuthenticateGoogle() error = %v, want %v", gotErr, tt.wantErr)
 			}
 
-			if tt.wantSession && gotSessionID == "" {
-				t.Error("AuthenticateGoogle() session ID is empty, want a generated session ID")
-			}
-			if !tt.wantSession && gotSessionID != "" {
-				t.Errorf("AuthenticateGoogle() session ID = %q, want empty", gotSessionID)
+			if gotTokens != tt.wantTokens {
+				t.Errorf("AuthenticateGoogle() tokens = %+v, want %+v", gotTokens, tt.wantTokens)
 			}
 		})
 	}
 }
 
 func TestAuth_Logout(t *testing.T) {
-	const (
-		sessionID   = "test-session-id"
-		sessionHash = "test-session-hash"
-	)
+	userID := uuid.New()
 
 	errCacheDelete := errors.New("cache delete failed")
 
@@ -425,7 +422,7 @@ func TestAuth_Logout(t *testing.T) {
 			name: "successfully logs out",
 			setup: func(sessionManagerMock *mocks.MockSessionManager) {
 				sessionManagerMock.EXPECT().
-					Destroy(gomock.Any(), sessionID).
+					Destroy(gomock.Any(), userID).
 					Return(nil).
 					Times(1)
 			},
@@ -434,7 +431,7 @@ func TestAuth_Logout(t *testing.T) {
 			name: "returns error when deleting session fails",
 			setup: func(sessionManagerMock *mocks.MockSessionManager) {
 				sessionManagerMock.EXPECT().
-					Destroy(gomock.Any(), sessionID).
+					Destroy(gomock.Any(), userID).
 					Return(errCacheDelete).
 					Times(1)
 			},
@@ -451,7 +448,7 @@ func TestAuth_Logout(t *testing.T) {
 
 			auth := NewAuth(nil, nil, nil, nil, sessionManagerMock)
 
-			gotErr := auth.Logout(context.Background(), sessionID)
+			gotErr := auth.Logout(context.Background(), userID)
 			if !errors.Is(gotErr, tt.wantErr) {
 				t.Errorf("Logout() error = %v, want %v", gotErr, tt.wantErr)
 			}

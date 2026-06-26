@@ -133,12 +133,6 @@ func TestSession_Destroy(t *testing.T) {
 
 	errRevokeToken := errors.New("revoke token")
 
-	const (
-		accessToken      = "access-token"
-		refreshToken     = "refresh-token"
-		refreshTokenHash = "refresh-token-hash"
-	)
-
 	tests := []struct {
 		name    string
 		setup   func(*MockTokenStore)
