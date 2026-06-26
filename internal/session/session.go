@@ -37,6 +37,7 @@ type TokenStore interface {
 	Create(ctx context.Context, refreshToken string, userID uuid.UUID) error
 	Revoke(ctx context.Context, userID uuid.UUID) error
 	GetByTokenHash(ctx context.Context, tokenHash string) (*domain.RefreshToken, error)
+	GetByUserID(ctx context.Context, userID uuid.UUID) (*domain.RefreshToken, error)
 }
 
 type HMACSvc interface {
@@ -88,7 +89,7 @@ func (s *Session) Destroy(ctx context.Context, userID uuid.UUID) error {
 }
 
 // GetAccesToken generates a new access token for the given refresh token
-func (s *Session) GetAccesToken(ctx context.Context, refreshToken string) (string, error) {
+func (s *Session) GetAccessToken(ctx context.Context, refreshToken string) (string, error) {
 
 	hashedRefreshToken := s.HMACSvc.Sign(refreshToken)
 
@@ -104,6 +105,11 @@ func (s *Session) GetAccesToken(ctx context.Context, refreshToken string) (strin
 	return accessToken, nil
 }
 
+func (s *Session) GetRefreshToken(ctx context.Context, userID uuid.UUID) (*domain.RefreshToken, error) {
+	return s.TokenStore.GetByUserID(ctx, userID)
+}
+
+// GetInfo returns the session info for the given token string
 func (s *Session) GetInfo(tokenString string) (SessionInfo, error) {
 	claims, err := s.JWTSvc.ParseJWT(tokenString)
 
@@ -123,6 +129,7 @@ func (s *Session) GetInfo(tokenString string) (SessionInfo, error) {
 	}, nil
 }
 
+// IsValidRefreshToken checks if the given refresh token is valid
 func (s *Session) IsValidRefreshToken(ctx context.Context, refreshToken string) (bool, error) {
 	hashedRefreshToken := s.HMACSvc.Sign(refreshToken)
 

@@ -127,6 +127,21 @@ func (mr *MockTokenStoreMockRecorder) GetByTokenHash(ctx, tokenHash any) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByTokenHash", reflect.TypeOf((*MockTokenStore)(nil).GetByTokenHash), ctx, tokenHash)
 }
 
+// GetByUserID mocks base method.
+func (m *MockTokenStore) GetByUserID(ctx context.Context, userID uuid.UUID) (*domain.RefreshToken, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetByUserID", ctx, userID)
+	ret0, _ := ret[0].(*domain.RefreshToken)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetByUserID indicates an expected call of GetByUserID.
+func (mr *MockTokenStoreMockRecorder) GetByUserID(ctx, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByUserID", reflect.TypeOf((*MockTokenStore)(nil).GetByUserID), ctx, userID)
+}
+
 // Revoke mocks base method.
 func (m *MockTokenStore) Revoke(ctx context.Context, userID uuid.UUID) error {
 	m.ctrl.T.Helper()

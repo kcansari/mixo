@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/kcansari/mixo/internal/domain"
 	"github.com/kcansari/mixo/internal/security"
+	"github.com/kcansari/mixo/internal/store"
 	"go.uber.org/mock/gomock"
 )
 
@@ -280,7 +281,75 @@ func TestSession_GetAccesToken(t *testing.T) {
 
 			session := NewSession(jwtSvc, hmacSvc, tokenStore)
 
-			token, err := session.GetAccesToken(ctx, refreshToken)
+			token, err := session.GetAccessToken(ctx, refreshToken)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("GetAccesToken() error = %v, want %v", err, tt.wantErr)
+			}
+			if tt.wantErr != nil && token != tt.want {
+				t.Fatalf("GetAccesToken() token = %v, want %v", token, tt.want)
+			}
+		})
+	}
+}
+
+func TestSession_GetRefreshToken(t *testing.T) {
+	ctx := context.Background()
+	userID := uuid.MustParse("11111111-1111-1111-1111-111111111111")
+
+	const (
+		refreshToken     = "refresh-token"
+		refreshTokenHash = "refresh-token-hash"
+	)
+
+	token := &domain.RefreshToken{
+		UserID:    userID,
+		TokenHash: refreshTokenHash,
+		RevokedAt: nil,
+		CreatedAt: time.Now(),
+	}
+
+	tests := []struct {
+		name    string
+		setup   func(*MockTokenStore)
+		want    *domain.RefreshToken
+		wantErr error
+	}{
+		{
+			name:    "get refresh token",
+			wantErr: nil,
+			want:    token,
+			setup: func(tokenStore *MockTokenStore) {
+				gomock.InOrder(
+					tokenStore.EXPECT().
+						GetByUserID(gomock.Any(), userID).
+						Return(token, nil),
+				)
+			},
+		},
+		{
+			name:    "refresh token not found",
+			wantErr: store.ErrRefreshTokenNotFound,
+			want:    nil,
+			setup: func(tokenStore *MockTokenStore) {
+				gomock.InOrder(
+					tokenStore.EXPECT().
+						GetByUserID(gomock.Any(), userID).
+						Return(nil, store.ErrRefreshTokenNotFound),
+				)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			tokenStore := NewMockTokenStore(ctrl)
+
+			tt.setup(tokenStore)
+
+			session := NewSession(nil, nil, tokenStore)
+
+			token, err := session.GetRefreshToken(ctx, userID)
 			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("GetAccesToken() error = %v, want %v", err, tt.wantErr)
 			}
