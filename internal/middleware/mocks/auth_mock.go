@@ -13,7 +13,9 @@ import (
 	context "context"
 	reflect "reflect"
 
+	uuid "github.com/google/uuid"
 	domain "github.com/kcansari/mixo/internal/domain"
+	session "github.com/kcansari/mixo/internal/session"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -42,113 +44,90 @@ func (m *MockSessionManager) EXPECT() *MockSessionManagerMockRecorder {
 }
 
 // Create mocks base method.
-func (m *MockSessionManager) Create(ctx context.Context, value string) (string, error) {
+func (m *MockSessionManager) Create(ctx context.Context, userID uuid.UUID) (domain.Tokens, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Create", ctx, value)
-	ret0, _ := ret[0].(string)
+	ret := m.ctrl.Call(m, "Create", ctx, userID)
+	ret0, _ := ret[0].(domain.Tokens)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Create indicates an expected call of Create.
-func (mr *MockSessionManagerMockRecorder) Create(ctx, value any) *gomock.Call {
+func (mr *MockSessionManagerMockRecorder) Create(ctx, userID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockSessionManager)(nil).Create), ctx, value)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockSessionManager)(nil).Create), ctx, userID)
 }
 
 // Destroy mocks base method.
-func (m *MockSessionManager) Destroy(ctx context.Context, id string) error {
+func (m *MockSessionManager) Destroy(ctx context.Context, userID uuid.UUID) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Destroy", ctx, id)
+	ret := m.ctrl.Call(m, "Destroy", ctx, userID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Destroy indicates an expected call of Destroy.
-func (mr *MockSessionManagerMockRecorder) Destroy(ctx, id any) *gomock.Call {
+func (mr *MockSessionManagerMockRecorder) Destroy(ctx, userID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Destroy", reflect.TypeOf((*MockSessionManager)(nil).Destroy), ctx, id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Destroy", reflect.TypeOf((*MockSessionManager)(nil).Destroy), ctx, userID)
 }
 
-// Extend mocks base method.
-func (m *MockSessionManager) Extend(ctx context.Context, sid string) error {
+// GetAccessToken mocks base method.
+func (m *MockSessionManager) GetAccessToken(ctx context.Context, refreshToken string) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Extend", ctx, sid)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Extend indicates an expected call of Extend.
-func (mr *MockSessionManagerMockRecorder) Extend(ctx, sid any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Extend", reflect.TypeOf((*MockSessionManager)(nil).Extend), ctx, sid)
-}
-
-// Get mocks base method.
-func (m *MockSessionManager) Get(ctx context.Context, id string) (string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Get", ctx, id)
+	ret := m.ctrl.Call(m, "GetAccessToken", ctx, refreshToken)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// Get indicates an expected call of Get.
-func (mr *MockSessionManagerMockRecorder) Get(ctx, id any) *gomock.Call {
+// GetAccessToken indicates an expected call of GetAccessToken.
+func (mr *MockSessionManagerMockRecorder) GetAccessToken(ctx, refreshToken any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockSessionManager)(nil).Get), ctx, id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAccessToken", reflect.TypeOf((*MockSessionManager)(nil).GetAccessToken), ctx, refreshToken)
 }
 
-// ShouldExtend mocks base method.
-func (m *MockSessionManager) ShouldExtend(ctx context.Context, sid string) (bool, error) {
+// GetInfo mocks base method.
+func (m *MockSessionManager) GetInfo(tokenString string) (session.SessionInfo, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ShouldExtend", ctx, sid)
+	ret := m.ctrl.Call(m, "GetInfo", tokenString)
+	ret0, _ := ret[0].(session.SessionInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetInfo indicates an expected call of GetInfo.
+func (mr *MockSessionManagerMockRecorder) GetInfo(tokenString any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInfo", reflect.TypeOf((*MockSessionManager)(nil).GetInfo), tokenString)
+}
+
+// GetRefreshToken mocks base method.
+func (m *MockSessionManager) GetRefreshToken(ctx context.Context, userID uuid.UUID) (*domain.RefreshToken, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetRefreshToken", ctx, userID)
+	ret0, _ := ret[0].(*domain.RefreshToken)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetRefreshToken indicates an expected call of GetRefreshToken.
+func (mr *MockSessionManagerMockRecorder) GetRefreshToken(ctx, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRefreshToken", reflect.TypeOf((*MockSessionManager)(nil).GetRefreshToken), ctx, userID)
+}
+
+// IsValidRefreshToken mocks base method.
+func (m *MockSessionManager) IsValidRefreshToken(ctx context.Context, refreshToken string) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsValidRefreshToken", ctx, refreshToken)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ShouldExtend indicates an expected call of ShouldExtend.
-func (mr *MockSessionManagerMockRecorder) ShouldExtend(ctx, sid any) *gomock.Call {
+// IsValidRefreshToken indicates an expected call of IsValidRefreshToken.
+func (mr *MockSessionManagerMockRecorder) IsValidRefreshToken(ctx, refreshToken any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ShouldExtend", reflect.TypeOf((*MockSessionManager)(nil).ShouldExtend), ctx, sid)
-}
-
-// MockUserSvc is a mock of UserSvc interface.
-type MockUserSvc struct {
-	ctrl     *gomock.Controller
-	recorder *MockUserSvcMockRecorder
-	isgomock struct{}
-}
-
-// MockUserSvcMockRecorder is the mock recorder for MockUserSvc.
-type MockUserSvcMockRecorder struct {
-	mock *MockUserSvc
-}
-
-// NewMockUserSvc creates a new mock instance.
-func NewMockUserSvc(ctrl *gomock.Controller) *MockUserSvc {
-	mock := &MockUserSvc{ctrl: ctrl}
-	mock.recorder = &MockUserSvcMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockUserSvc) EXPECT() *MockUserSvcMockRecorder {
-	return m.recorder
-}
-
-// GetByID mocks base method.
-func (m *MockUserSvc) GetByID(ctx context.Context, id string) (*domain.User, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetByID", ctx, id)
-	ret0, _ := ret[0].(*domain.User)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetByID indicates an expected call of GetByID.
-func (mr *MockUserSvcMockRecorder) GetByID(ctx, id any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByID", reflect.TypeOf((*MockUserSvc)(nil).GetByID), ctx, id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsValidRefreshToken", reflect.TypeOf((*MockSessionManager)(nil).IsValidRefreshToken), ctx, refreshToken)
 }
