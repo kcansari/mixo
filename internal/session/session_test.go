@@ -294,9 +294,7 @@ func TestSession_GetAccesToken(t *testing.T) {
 func TestSession_GetInfo(t *testing.T) {
 
 	const (
-		accessToken      = "access-token"
-		refreshToken     = "refresh-token"
-		refreshTokenHash = "refresh-token-hash"
+		accessToken = "access-token"
 	)
 
 	var (
@@ -377,6 +375,77 @@ func TestSession_GetInfo(t *testing.T) {
 			}
 			if tt.wantErr != nil && info != tt.want {
 				t.Fatalf("GetInfo() info = %v, want %v", info, tt.want)
+			}
+		})
+	}
+}
+
+func TestSession_IsValidRefreshToken(t *testing.T) {
+
+	const (
+		refreshToken     = "refresh-token"
+		refreshTokenHash = "refresh-token-hash"
+	)
+
+	token := &domain.RefreshToken{
+		UserID:    uuid.New(),
+		TokenHash: refreshTokenHash,
+		RevokedAt: &time.Time{},
+		CreatedAt: time.Now(),
+	}
+
+	tests := []struct {
+		name    string
+		setup   func(*MockHMACSvc, *MockTokenStore)
+		want    bool
+		wantErr error
+	}{
+		{
+			name: "valid refresh token",
+			want: true,
+			setup: func(hmacSvc *MockHMACSvc, tokenStore *MockTokenStore) {
+				gomock.InOrder(
+					hmacSvc.EXPECT().
+						Sign(refreshToken).
+						Return(refreshTokenHash),
+					tokenStore.EXPECT().
+						GetByTokenHash(gomock.Any(), refreshTokenHash).
+						Return(token, nil),
+				)
+			},
+		},
+		{
+			name: "invalid refresh token",
+			want: false,
+			setup: func(hmacSvc *MockHMACSvc, tokenStore *MockTokenStore) {
+				gomock.InOrder(
+					hmacSvc.EXPECT().
+						Sign(refreshToken).
+						Return(refreshTokenHash),
+					tokenStore.EXPECT().
+						GetByTokenHash(gomock.Any(), refreshTokenHash).
+						Return(nil, nil),
+				)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			hmacSvc := NewMockHMACSvc(ctrl)
+			tokenStore := NewMockTokenStore(ctrl)
+
+			tt.setup(hmacSvc, tokenStore)
+
+			session := NewSession(nil, hmacSvc, tokenStore)
+
+			isValid, err := session.IsValidRefreshToken(context.Background(), refreshToken)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("IsValidRefreshToken() error = %v, want %v", err, tt.wantErr)
+			}
+			if tt.wantErr == nil && isValid != tt.want {
+				t.Fatalf("IsValidRefreshToken() isValid = %v, want %v", isValid, tt.want)
 			}
 		})
 	}

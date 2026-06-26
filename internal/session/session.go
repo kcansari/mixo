@@ -122,3 +122,14 @@ func (s *Session) GetInfo(tokenString string) (SessionInfo, error) {
 		CustomClaims: claims,
 	}, nil
 }
+
+func (s *Session) IsValidRefreshToken(ctx context.Context, refreshToken string) (bool, error) {
+	hashedRefreshToken := s.HMACSvc.Sign(refreshToken)
+
+	token, err := s.TokenStore.GetByTokenHash(ctx, hashedRefreshToken)
+	if err != nil {
+		return false, err
+	}
+
+	return token != nil, nil
+}
