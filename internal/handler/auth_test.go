@@ -11,9 +11,9 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/kcansari/mixo/internal/domain"
 	"github.com/kcansari/mixo/internal/handler/mocks"
 	"github.com/kcansari/mixo/internal/middleware"
-	"github.com/stretchr/testify/assert"
 
 	gomock "go.uber.org/mock/gomock"
 )
@@ -77,30 +77,44 @@ func TestAuth_Google(t *testing.T) {
 }
 
 func TestAuth_GoogleCallback(t *testing.T) {
-	sessionID := "test-session-id"
+	tokens := domain.Tokens{
+		AccessToken:  "test-access-token",
+		RefreshToken: "test-refresh-token",
+	}
 	frontendURL := "http://localhost:3000"
 	tests := []struct {
 		name       string // description of this test case
 		setup      func(mockAuthSvc *mocks.MockAuthSvc)
 		wantStatus int
-		wantCookie *http.Cookie
+		wantCookie []*http.Cookie
 		wantURL    string
 		requestURL string
 	}{
 		{
 			name: "success",
 			setup: func(mockAuthSvc *mocks.MockAuthSvc) {
-				mockAuthSvc.EXPECT().AuthenticateGoogle(gomock.Any(), gomock.Any(), gomock.Any()).Return(sessionID, nil).Times(1)
+				mockAuthSvc.EXPECT().AuthenticateGoogle(gomock.Any(), gomock.Any(), gomock.Any()).Return(tokens, nil).Times(1)
 			},
 			wantStatus: http.StatusFound,
-			wantCookie: &http.Cookie{
-				Name:     "sid",
-				Value:    sessionID,
-				Path:     "/",
-				MaxAge:   7 * 24 * 60 * 60,
-				HttpOnly: true,
-				Secure:   true,
-				SameSite: http.SameSiteStrictMode,
+			wantCookie: []*http.Cookie{
+				{
+					Name:     "refresh_token",
+					Value:    tokens.RefreshToken,
+					Path:     "/",
+					MaxAge:   int(domain.DefaultRefreshTokenExpiration / time.Second),
+					HttpOnly: true,
+					Secure:   true,
+					SameSite: http.SameSiteStrictMode,
+				},
+				{
+					Name:     "access_token",
+					Value:    tokens.AccessToken,
+					Path:     "/",
+					MaxAge:   int(domain.DefaultAccessTokenExpiration / time.Second),
+					HttpOnly: true,
+					Secure:   true,
+					SameSite: http.SameSiteStrictMode,
+				},
 			},
 			wantURL:    frontendURL,
 			requestURL: "/auth/google/callback?code=test-code&state=test-state",
@@ -151,7 +165,7 @@ func TestAuth_GoogleCallback(t *testing.T) {
 			if tt.wantCookie != nil {
 				cookies := resp.Cookies()
 
-				if diff := cmp.Diff([]*http.Cookie{tt.wantCookie}, cookies, cmpopts.IgnoreFields(http.Cookie{}, "Raw")); diff != "" {
+				if diff := cmp.Diff(tt.wantCookie, cookies, cmpopts.IgnoreFields(http.Cookie{}, "Raw")); diff != "" {
 					t.Errorf("cookies mismatch (-want +got):\n%s", diff)
 				}
 			}
@@ -162,6 +176,7 @@ func TestAuth_GoogleCallback(t *testing.T) {
 func TestAuth_Logout(t *testing.T) {
 	userID := "user-id"
 	frontendURL := "http://localhost:3000"
+	errService := errors.New("service error")
 
 	tests := []struct {
 		name       string
@@ -191,7 +206,7 @@ func TestAuth_Logout(t *testing.T) {
 		{
 			name: "error from service",
 			setup: func(ctx context.Context, mockAuthSvc *mocks.MockAuthSvc) {
-				mockAuthSvc.EXPECT().Logout(ctx, userID).Return(assert.AnError).Times(1)
+				mockAuthSvc.EXPECT().Logout(ctx, userID).Return(errService).Times(1)
 			},
 			wantStatus: http.StatusInternalServerError,
 			setCookie:  true,

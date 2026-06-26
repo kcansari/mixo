@@ -13,6 +13,8 @@ import (
 	context "context"
 	reflect "reflect"
 
+	uuid "github.com/google/uuid"
+	domain "github.com/kcansari/mixo/internal/domain"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -41,10 +43,10 @@ func (m *MockAuthSvc) EXPECT() *MockAuthSvcMockRecorder {
 }
 
 // AuthenticateGoogle mocks base method.
-func (m *MockAuthSvc) AuthenticateGoogle(ctx context.Context, code, state string) (string, error) {
+func (m *MockAuthSvc) AuthenticateGoogle(ctx context.Context, code, state string) (domain.Tokens, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AuthenticateGoogle", ctx, code, state)
-	ret0, _ := ret[0].(string)
+	ret0, _ := ret[0].(domain.Tokens)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -71,15 +73,15 @@ func (mr *MockAuthSvcMockRecorder) GetGoogleRedirectURL(ctx any) *gomock.Call {
 }
 
 // Logout mocks base method.
-func (m *MockAuthSvc) Logout(ctx context.Context, sessionID string) error {
+func (m *MockAuthSvc) Logout(ctx context.Context, userID uuid.UUID) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Logout", ctx, sessionID)
+	ret := m.ctrl.Call(m, "Logout", ctx, userID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Logout indicates an expected call of Logout.
-func (mr *MockAuthSvcMockRecorder) Logout(ctx, sessionID any) *gomock.Call {
+func (mr *MockAuthSvcMockRecorder) Logout(ctx, userID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Logout", reflect.TypeOf((*MockAuthSvc)(nil).Logout), ctx, sessionID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Logout", reflect.TypeOf((*MockAuthSvc)(nil).Logout), ctx, userID)
 }

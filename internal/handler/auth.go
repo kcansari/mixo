@@ -6,8 +6,11 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/kcansari/mixo/internal/domain"
 	"github.com/kcansari/mixo/internal/httpx"
 	"github.com/kcansari/mixo/internal/middleware"
+	"github.com/kcansari/mixo/internal/security"
 	"github.com/kcansari/mixo/internal/serializer"
 )
 
@@ -18,8 +21,8 @@ type Auth struct {
 
 type AuthSvc interface {
 	GetGoogleRedirectURL(ctx context.Context) (url string, err error)
-	AuthenticateGoogle(ctx context.Context, code string, state string) (sessiondID string, err error)
-	Logout(ctx context.Context, sessionID string) error
+	AuthenticateGoogle(ctx context.Context, code string, state string) (domain.Tokens, error)
+	Logout(ctx context.Context, userID uuid.UUID) error
 }
 
 func NewAuth(auth Auth) *Auth {
@@ -50,23 +53,14 @@ func (a *Auth) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessionID, err := a.AuthSvc.AuthenticateGoogle(r.Context(), data.Code, data.State)
+	tokens, err := a.AuthSvc.AuthenticateGoogle(r.Context(), data.Code, data.State)
 	if err != nil {
 		httpx.Render(w, r, httpx.FromError(r.Context(), err))
 		return
 	}
 
-	cookie := &http.Cookie{
-		Name:     "sid",
-		Value:    sessionID,
-		Path:     "/",
-		MaxAge:   7 * 24 * 60 * 60,
-		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteStrictMode,
-	}
-
-	http.SetCookie(w, cookie)
+	middleware.SetAuthCookie(w, string(security.TokenTypeRefresh), tokens.RefreshToken, int(domain.DefaultRefreshTokenExpiration/time.Second))
+	middleware.SetAuthCookie(w, string(security.TokenTypeAccess), tokens.AccessToken, int(domain.DefaultAccessTokenExpiration/time.Second))
 
 	http.Redirect(w, r, a.FrontendURL, http.StatusFound)
 }
@@ -80,22 +74,20 @@ func (a *Auth) Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := a.AuthSvc.Logout(r.Context(), userID)
+	userIDUUID, err := uuid.Parse(userID)
 	if err != nil {
 		httpx.Render(w, r, httpx.FromError(r.Context(), err))
 		return
 	}
 
-	cookie := &http.Cookie{
-		Name:     "sid",
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1,
-		Expires:  time.Unix(0, 0),
-		HttpOnly: true,
+	err = a.AuthSvc.Logout(r.Context(), userIDUUID)
+	if err != nil {
+		httpx.Render(w, r, httpx.FromError(r.Context(), err))
+		return
 	}
 
-	http.SetCookie(w, cookie)
+	middleware.SetAuthCookie(w, string(security.TokenTypeAccess), "", middleware.DeleteCookieNow)
+	middleware.SetAuthCookie(w, string(security.TokenTypeRefresh), "", middleware.DeleteCookieNow)
 
 	http.Redirect(w, r, a.FrontendURL, http.StatusFound)
 }
