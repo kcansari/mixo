@@ -37,7 +37,6 @@ func TestUsers_Create(t *testing.T) {
 			FamilyName:     "test family name",
 			Picture:        "test-user-picture",
 		},
-		RefreshToken: "test-refresh-token",
 	}
 
 	tests := []struct {
@@ -154,7 +153,6 @@ func TestUsers_GetByProviderUserID(t *testing.T) {
 			Picture:        "test-user-picture",
 			IsAdmin:        false,
 		},
-		RefreshToken: "test-refresh-token",
 	}
 
 	tests := []struct {
@@ -263,7 +261,6 @@ func TestUsers_GetByID(t *testing.T) {
 			Picture:        "test-user-picture",
 			IsAdmin:        false,
 		},
-		RefreshToken: "test-refresh-token",
 	}
 
 	tests := []struct {

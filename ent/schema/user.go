@@ -26,7 +26,6 @@ func (User) Fields() []ent.Field {
 		field.String("family_name"),
 		field.String("picture"),
 		field.String("provider_user_id"),
-		field.String("refresh_token").Optional().Nillable(),
 		field.String("provider").Default("google"),
 		field.Time("created_at").Default(time.Now).Immutable(),
 		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now),

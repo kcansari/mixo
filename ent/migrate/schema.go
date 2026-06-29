@@ -40,7 +40,6 @@ var (
 		{Name: "family_name", Type: field.TypeString},
 		{Name: "picture", Type: field.TypeString},
 		{Name: "provider_user_id", Type: field.TypeString},
-		{Name: "refresh_token", Type: field.TypeString, Nullable: true},
 		{Name: "provider", Type: field.TypeString, Default: "google"},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
@@ -55,7 +54,7 @@ var (
 			{
 				Name:    "user_provider_provider_user_id",
 				Unique:  true,
-				Columns: []*schema.Column{UsersColumns[9], UsersColumns[7]},
+				Columns: []*schema.Column{UsersColumns[8], UsersColumns[7]},
 			},
 		},
 	}

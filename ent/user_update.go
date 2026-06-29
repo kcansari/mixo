@@ -127,26 +127,6 @@ func (_u *UserUpdate) SetNillableProviderUserID(v *string) *UserUpdate {
 	return _u
 }
 
-// SetRefreshToken sets the "refresh_token" field.
-func (_u *UserUpdate) SetRefreshToken(v string) *UserUpdate {
-	_u.mutation.SetRefreshToken(v)
-	return _u
-}
-
-// SetNillableRefreshToken sets the "refresh_token" field if the given value is not nil.
-func (_u *UserUpdate) SetNillableRefreshToken(v *string) *UserUpdate {
-	if v != nil {
-		_u.SetRefreshToken(*v)
-	}
-	return _u
-}
-
-// ClearRefreshToken clears the value of the "refresh_token" field.
-func (_u *UserUpdate) ClearRefreshToken() *UserUpdate {
-	_u.mutation.ClearRefreshToken()
-	return _u
-}
-
 // SetProvider sets the "provider" field.
 func (_u *UserUpdate) SetProvider(v string) *UserUpdate {
 	_u.mutation.SetProvider(v)
@@ -287,12 +267,6 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.ProviderUserID(); ok {
 		_spec.SetField(user.FieldProviderUserID, field.TypeString, value)
-	}
-	if value, ok := _u.mutation.RefreshToken(); ok {
-		_spec.SetField(user.FieldRefreshToken, field.TypeString, value)
-	}
-	if _u.mutation.RefreshTokenCleared() {
-		_spec.ClearField(user.FieldRefreshToken, field.TypeString)
 	}
 	if value, ok := _u.mutation.Provider(); ok {
 		_spec.SetField(user.FieldProvider, field.TypeString, value)
@@ -466,26 +440,6 @@ func (_u *UserUpdateOne) SetNillableProviderUserID(v *string) *UserUpdateOne {
 	return _u
 }
 
-// SetRefreshToken sets the "refresh_token" field.
-func (_u *UserUpdateOne) SetRefreshToken(v string) *UserUpdateOne {
-	_u.mutation.SetRefreshToken(v)
-	return _u
-}
-
-// SetNillableRefreshToken sets the "refresh_token" field if the given value is not nil.
-func (_u *UserUpdateOne) SetNillableRefreshToken(v *string) *UserUpdateOne {
-	if v != nil {
-		_u.SetRefreshToken(*v)
-	}
-	return _u
-}
-
-// ClearRefreshToken clears the value of the "refresh_token" field.
-func (_u *UserUpdateOne) ClearRefreshToken() *UserUpdateOne {
-	_u.mutation.ClearRefreshToken()
-	return _u
-}
-
 // SetProvider sets the "provider" field.
 func (_u *UserUpdateOne) SetProvider(v string) *UserUpdateOne {
 	_u.mutation.SetProvider(v)
@@ -656,12 +610,6 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	}
 	if value, ok := _u.mutation.ProviderUserID(); ok {
 		_spec.SetField(user.FieldProviderUserID, field.TypeString, value)
-	}
-	if value, ok := _u.mutation.RefreshToken(); ok {
-		_spec.SetField(user.FieldRefreshToken, field.TypeString, value)
-	}
-	if _u.mutation.RefreshTokenCleared() {
-		_spec.ClearField(user.FieldRefreshToken, field.TypeString)
 	}
 	if value, ok := _u.mutation.Provider(); ok {
 		_spec.SetField(user.FieldProvider, field.TypeString, value)

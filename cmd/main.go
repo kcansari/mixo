@@ -16,7 +16,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
-	"github.com/kcansari/mixo/internal/cache"
 	"github.com/kcansari/mixo/internal/config"
 	"github.com/kcansari/mixo/internal/database"
 	"github.com/kcansari/mixo/internal/handler"
@@ -117,29 +116,10 @@ func run() http.Handler {
 	userStore := store.NewUsers(client)
 	refreshTokenStore := store.NewRefreshToken(client)
 
-	cacheSvc, err := cache.NewRedisClient(cache.RedisConfig{
-		Host:     cfg.DB.Redis.Host,
-		Port:     cfg.DB.Redis.Port,
-		Password: cfg.DB.Redis.Password,
-		DB:       cfg.DB.Redis.DB,
-	})
-
-	if err != nil {
-		log.Fatal("cache error:", err)
-	}
-
-	googleOAuth, err := oauth.NewGoogleOAuth(oauth.GoogleConfig{
-		ClientID:     cfg.Google.ClientID,
-		ClientSecret: cfg.Google.ClientSecret,
-		RedirectURL:  cfg.Google.RedirectURL,
-	})
+	defaultIDTokenValidator := oauth.DefaultIDTokenValidator{}
+	googleOAuth, err := oauth.NewGoogleOAuth(cfg.Google.ClientID, defaultIDTokenValidator)
 	if err != nil {
 		log.Fatal("google oauth error:", err)
-	}
-
-	cipher, err := security.NewCipher(cfg.App.CipherSecretKey)
-	if err != nil {
-		log.Fatal("cipher error:", err)
 	}
 
 	jwtSvc, err := security.NewJWTService(cfg.App.JWTSecret)
@@ -152,9 +132,7 @@ func run() http.Handler {
 
 	authSvc := services.NewAuth(
 		googleOAuth,
-		cacheSvc,
 		userStore,
-		cipher,
 		sessionManager,
 	)
 

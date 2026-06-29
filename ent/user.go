@@ -32,8 +32,6 @@ type User struct {
 	Picture string `json:"picture,omitempty"`
 	// ProviderUserID holds the value of the "provider_user_id" field.
 	ProviderUserID string `json:"provider_user_id,omitempty"`
-	// RefreshToken holds the value of the "refresh_token" field.
-	RefreshToken *string `json:"refresh_token,omitempty"`
 	// Provider holds the value of the "provider" field.
 	Provider string `json:"provider,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -73,7 +71,7 @@ func (*User) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case user.FieldVerifiedEmail, user.FieldIsAdmin:
 			values[i] = new(sql.NullBool)
-		case user.FieldEmail, user.FieldName, user.FieldGivenName, user.FieldFamilyName, user.FieldPicture, user.FieldProviderUserID, user.FieldRefreshToken, user.FieldProvider:
+		case user.FieldEmail, user.FieldName, user.FieldGivenName, user.FieldFamilyName, user.FieldPicture, user.FieldProviderUserID, user.FieldProvider:
 			values[i] = new(sql.NullString)
 		case user.FieldCreatedAt, user.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -141,13 +139,6 @@ func (_m *User) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field provider_user_id", values[i])
 			} else if value.Valid {
 				_m.ProviderUserID = value.String
-			}
-		case user.FieldRefreshToken:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field refresh_token", values[i])
-			} else if value.Valid {
-				_m.RefreshToken = new(string)
-				*_m.RefreshToken = value.String
 			}
 		case user.FieldProvider:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -234,11 +225,6 @@ func (_m *User) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("provider_user_id=")
 	builder.WriteString(_m.ProviderUserID)
-	builder.WriteString(", ")
-	if v := _m.RefreshToken; v != nil {
-		builder.WriteString("refresh_token=")
-		builder.WriteString(*v)
-	}
 	builder.WriteString(", ")
 	builder.WriteString("provider=")
 	builder.WriteString(_m.Provider)

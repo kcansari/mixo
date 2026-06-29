@@ -1,41 +1,26 @@
-//go:generate mockgen -destination=mocks/google_mocks.go -package=mocks net/http RoundTripper
+//go:generate mockgen -source=google.go -destination=mocks/google_mocks.go -package=mocks
 package oauth
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"strings"
 
-	"golang.org/x/oauth2"
-)
-
-const (
-	authURL  = "https://accounts.google.com/o/oauth2/auth"
-	tokenURL = "https://oauth2.googleapis.com/token"
+	"google.golang.org/api/idtoken"
 )
 
 var (
-	ErrGoogleClientIDRequired       = errors.New("googleOAuth client_id is required")
-	ErrGoogleClientSecretRequired   = errors.New("googleOAuth client_secret is required")
-	ErrGoogleRedirectURLRequired    = errors.New("googleOAuth redirect_url is required")
-	ErrGoogleProviderUserIDRequired = errors.New("googleOAuth provider user id is required")
-	ErrGoogleEmailRequired          = errors.New("googleOAuth email is required")
-	ErrInvalidCode                  = errors.New("googleOAuth invalid code")
-	ErrInvalidVerifier              = errors.New("googleOAuth invalid verifier")
+	ErrGoogleClientIDRequired   = errors.New("googleOAuth client_id is required")
+	ErrEmptySubject             = errors.New("payload subject is empty")
+	ErrIDTokenValidatorRequired = errors.New("googleOAuth validator is required")
+	ErrInvalidEmailClaim        = errors.New("email claim is missing or empty")
+	ErrEmptyPayload             = errors.New("idtoken verify payload is nil")
 )
 
 type GoogleOAuth struct {
-	config oauth2.Config
-}
-
-type GoogleConfig struct {
-	ClientID     string
-	ClientSecret string
-	RedirectURL  string
+	ClientID  string
+	validator IDTokenValidator
 }
 
 type GoogleUserInfo struct {
@@ -48,96 +33,75 @@ type GoogleUserInfo struct {
 	Picture       string `json:"picture"`
 }
 
-func NewGoogleOAuth(config GoogleConfig) (*GoogleOAuth, error) {
+type IDTokenValidator interface {
+	Validate(ctx context.Context, token string, audience string) (*idtoken.Payload, error)
+}
 
-	if strings.TrimSpace(config.ClientID) == "" {
+func NewGoogleOAuth(clientID string, validator IDTokenValidator) (*GoogleOAuth, error) {
+
+	if strings.TrimSpace(clientID) == "" {
 		return nil, ErrGoogleClientIDRequired
 	}
-	if strings.TrimSpace(config.ClientSecret) == "" {
-		return nil, ErrGoogleClientSecretRequired
-	}
-	if strings.TrimSpace(config.RedirectURL) == "" {
-		return nil, ErrGoogleRedirectURLRequired
+
+	if validator == nil {
+		return nil, ErrIDTokenValidatorRequired
 	}
 
-	oauth2Config := oauth2.Config{
-		ClientID:     config.ClientID,
-		ClientSecret: config.ClientSecret,
-		RedirectURL:  config.RedirectURL,
-		Scopes:       []string{"openid", "email", "profile"},
-		Endpoint: oauth2.Endpoint{
-			AuthURL:  authURL,
-			TokenURL: tokenURL,
-		},
-	}
 	return &GoogleOAuth{
-		config: oauth2Config,
+		ClientID:  clientID,
+		validator: validator,
 	}, nil
 }
 
-func (g *GoogleOAuth) GetRedirectURL() (verifier, state, url string) {
-	// use PKCE to protect against CSRF attacks
-	// https://www.ietf.org/archive/id/draft-ietf-oauth-security-topics-22.html#name-countermeasures-6
-	verifier = oauth2.GenerateVerifier()
-	state = rand.Text()
+func (g *GoogleOAuth) VerifyIDToken(ctx context.Context, token string) (*GoogleUserInfo, error) {
+	payload, err := g.validator.Validate(ctx, token, g.ClientID)
+	if err != nil {
+		return nil, fmt.Errorf("oauth.google.VerifyIDToken: validate token: %w", err)
+	}
 
-	url = g.config.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.S256ChallengeOption(verifier))
-	return verifier, state, url
+	if payload == nil {
+		return nil, ErrEmptyPayload
+	}
+
+	if strings.TrimSpace(payload.Subject) == "" {
+		return nil, ErrEmptySubject
+	}
+
+	email, ok := stringClaim(payload.Claims, "email")
+	if !ok || strings.TrimSpace(email) == "" {
+		return nil, ErrInvalidEmailClaim
+	}
+
+	userInfo := GoogleUserInfo{
+		ID:            payload.Subject,
+		Email:         email,
+		EmailVerified: boolClaim(payload.Claims, "email_verified"),
+		Name:          optionalStringClaim(payload.Claims, "name"),
+		GivenName:     optionalStringClaim(payload.Claims, "given_name"),
+		FamilyName:    optionalStringClaim(payload.Claims, "family_name"),
+		Picture:       optionalStringClaim(payload.Claims, "picture"),
+	}
+
+	return &userInfo, nil
 }
 
-func (g *GoogleOAuth) Exchange(ctx context.Context, code string, verifier string) (*oauth2.Token, error) {
-	if strings.TrimSpace(code) == "" {
-		return nil, fmt.Errorf("oauth.google.Exchange: %w", ErrInvalidCode)
-	}
-	if strings.TrimSpace(verifier) == "" {
-		return nil, fmt.Errorf("oauth.google.Exchange: %w", ErrInvalidVerifier)
-	}
-	token, err := g.config.Exchange(ctx, code, oauth2.VerifierOption(verifier))
-	if err != nil {
-		return nil, fmt.Errorf("ouath.google.Exchange: exchange token: %w", err)
-	}
-	return token, nil
+func stringClaim(claims map[string]any, key string) (string, bool) {
+	value, ok := claims[key].(string)
+	return value, ok
 }
 
-func (g *GoogleOAuth) GetUserInfo(ctx context.Context, token *oauth2.Token) (user GoogleUserInfo, err error) {
-	const userInfoURL = "https://www.googleapis.com/oauth2/v2/userinfo"
+func optionalStringClaim(claims map[string]any, key string) string {
+	value, _ := claims[key].(string)
+	return value
+}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, userInfoURL, nil)
-	if err != nil {
-		return GoogleUserInfo{}, fmt.Errorf("ouath.google.GetUserInfo: create request: %w", err)
-	}
+func boolClaim(claims map[string]any, key string) bool {
+	value, _ := claims[key].(bool)
+	return value
+}
 
-	resp, err := g.config.Client(ctx, token).Do(req)
-	if err != nil {
-		return GoogleUserInfo{}, fmt.Errorf("ouath.google.GetUserInfo: do request: %w", err)
-	}
-	defer resp.Body.Close()
+type DefaultIDTokenValidator struct{}
 
-	if resp.StatusCode != http.StatusOK {
-		return GoogleUserInfo{}, fmt.Errorf("ouath.google.GetUserInfo: status code: %d", resp.StatusCode)
-	}
-
-	var userInfo GoogleUserInfo
-	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
-		return GoogleUserInfo{}, err
-	}
-
-	if userInfo.ID == "" {
-		return GoogleUserInfo{},
-			fmt.Errorf("ouath.google.GetUserInfo: %w", ErrGoogleProviderUserIDRequired)
-	}
-	if userInfo.Email == "" {
-		return GoogleUserInfo{},
-			fmt.Errorf("ouath.google.GetUserInfo: %w", ErrGoogleEmailRequired)
-	}
-
-	return GoogleUserInfo{
-		ID:            userInfo.ID,
-		Email:         userInfo.Email,
-		EmailVerified: userInfo.EmailVerified,
-		Name:          userInfo.Name,
-		GivenName:     userInfo.GivenName,
-		FamilyName:    userInfo.FamilyName,
-		Picture:       userInfo.Picture,
-	}, nil
+func (DefaultIDTokenValidator) Validate(ctx context.Context, token string, audience string) (*idtoken.Payload, error) {
+	return idtoken.Validate(ctx, token, audience)
 }

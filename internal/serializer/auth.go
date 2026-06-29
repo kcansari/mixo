@@ -9,6 +9,7 @@ import (
 var (
 	ErrGoogleCodeRequired  = errors.New("googleOAuth code is required")
 	ErrGoogleStateRequired = errors.New("googleOAuth state is required")
+	ErrGoogleTokenRequired = errors.New("googleOAuth token is required")
 )
 
 type GoogleCallbackRequest struct {
@@ -36,4 +37,25 @@ func (g *GoogleCallbackRequest) BindQuery(r *http.Request) error {
 		return ErrGoogleStateRequired
 	}
 	return nil
+}
+
+type GoogleVerifyRequest struct {
+	Token string `json:"idToken"`
+}
+
+type GoogleVerifyResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
+func (g *GoogleVerifyRequest) Bind(r *http.Request) error {
+
+	if strings.TrimSpace(g.Token) == "" {
+		return ErrGoogleTokenRequired
+	}
+	return nil
+}
+
+func NewGoogleVerifyResponse(accessToken, refreshToken string) *GoogleVerifyResponse {
+	return &GoogleVerifyResponse{AccessToken: accessToken, RefreshToken: refreshToken}
 }

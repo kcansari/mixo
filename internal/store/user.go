@@ -36,7 +36,6 @@ func (u *Users) Create(ctx context.Context, user domain.UserCreate) (*domain.Use
 		SetGivenName(user.GivenName).
 		SetFamilyName(user.FamilyName).
 		SetPicture(user.Picture).
-		SetRefreshToken(user.RefreshToken).
 		Save(ctx)
 
 	if err != nil {

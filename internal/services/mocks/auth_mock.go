@@ -12,13 +12,11 @@ package mocks
 import (
 	context "context"
 	reflect "reflect"
-	time "time"
 
 	uuid "github.com/google/uuid"
 	domain "github.com/kcansari/mixo/internal/domain"
 	oauth "github.com/kcansari/mixo/internal/oauth"
 	gomock "go.uber.org/mock/gomock"
-	oauth2 "golang.org/x/oauth2"
 )
 
 // MockOAuthGoogle is a mock of OAuthGoogle interface.
@@ -45,186 +43,19 @@ func (m *MockOAuthGoogle) EXPECT() *MockOAuthGoogleMockRecorder {
 	return m.recorder
 }
 
-// Exchange mocks base method.
-func (m *MockOAuthGoogle) Exchange(ctx context.Context, code, verifier string) (*oauth2.Token, error) {
+// VerifyIDToken mocks base method.
+func (m *MockOAuthGoogle) VerifyIDToken(ctx context.Context, token string) (*oauth.GoogleUserInfo, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Exchange", ctx, code, verifier)
-	ret0, _ := ret[0].(*oauth2.Token)
+	ret := m.ctrl.Call(m, "VerifyIDToken", ctx, token)
+	ret0, _ := ret[0].(*oauth.GoogleUserInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// Exchange indicates an expected call of Exchange.
-func (mr *MockOAuthGoogleMockRecorder) Exchange(ctx, code, verifier any) *gomock.Call {
+// VerifyIDToken indicates an expected call of VerifyIDToken.
+func (mr *MockOAuthGoogleMockRecorder) VerifyIDToken(ctx, token any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exchange", reflect.TypeOf((*MockOAuthGoogle)(nil).Exchange), ctx, code, verifier)
-}
-
-// GetRedirectURL mocks base method.
-func (m *MockOAuthGoogle) GetRedirectURL() (string, string, string) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetRedirectURL")
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(string)
-	ret2, _ := ret[2].(string)
-	return ret0, ret1, ret2
-}
-
-// GetRedirectURL indicates an expected call of GetRedirectURL.
-func (mr *MockOAuthGoogleMockRecorder) GetRedirectURL() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRedirectURL", reflect.TypeOf((*MockOAuthGoogle)(nil).GetRedirectURL))
-}
-
-// GetUserInfo mocks base method.
-func (m *MockOAuthGoogle) GetUserInfo(ctx context.Context, token *oauth2.Token) (oauth.GoogleUserInfo, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetUserInfo", ctx, token)
-	ret0, _ := ret[0].(oauth.GoogleUserInfo)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetUserInfo indicates an expected call of GetUserInfo.
-func (mr *MockOAuthGoogleMockRecorder) GetUserInfo(ctx, token any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserInfo", reflect.TypeOf((*MockOAuthGoogle)(nil).GetUserInfo), ctx, token)
-}
-
-// MockCache is a mock of Cache interface.
-type MockCache struct {
-	ctrl     *gomock.Controller
-	recorder *MockCacheMockRecorder
-	isgomock struct{}
-}
-
-// MockCacheMockRecorder is the mock recorder for MockCache.
-type MockCacheMockRecorder struct {
-	mock *MockCache
-}
-
-// NewMockCache creates a new mock instance.
-func NewMockCache(ctrl *gomock.Controller) *MockCache {
-	mock := &MockCache{ctrl: ctrl}
-	mock.recorder = &MockCacheMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockCache) EXPECT() *MockCacheMockRecorder {
-	return m.recorder
-}
-
-// Delete mocks base method.
-func (m *MockCache) Delete(ctx context.Context, key string) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Delete", ctx, key)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Delete indicates an expected call of Delete.
-func (mr *MockCacheMockRecorder) Delete(ctx, key any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockCache)(nil).Delete), ctx, key)
-}
-
-// Get mocks base method.
-func (m *MockCache) Get(ctx context.Context, key string) (string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Get", ctx, key)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Get indicates an expected call of Get.
-func (mr *MockCacheMockRecorder) Get(ctx, key any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockCache)(nil).Get), ctx, key)
-}
-
-// KeyCreator mocks base method.
-func (m *MockCache) KeyCreator(prefix, key string) (string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "KeyCreator", prefix, key)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// KeyCreator indicates an expected call of KeyCreator.
-func (mr *MockCacheMockRecorder) KeyCreator(prefix, key any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "KeyCreator", reflect.TypeOf((*MockCache)(nil).KeyCreator), prefix, key)
-}
-
-// Set mocks base method.
-func (m *MockCache) Set(ctx context.Context, key string, value any, expiration time.Duration) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Set", ctx, key, value, expiration)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Set indicates an expected call of Set.
-func (mr *MockCacheMockRecorder) Set(ctx, key, value, expiration any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Set", reflect.TypeOf((*MockCache)(nil).Set), ctx, key, value, expiration)
-}
-
-// MockChiper is a mock of Chiper interface.
-type MockChiper struct {
-	ctrl     *gomock.Controller
-	recorder *MockChiperMockRecorder
-	isgomock struct{}
-}
-
-// MockChiperMockRecorder is the mock recorder for MockChiper.
-type MockChiperMockRecorder struct {
-	mock *MockChiper
-}
-
-// NewMockChiper creates a new mock instance.
-func NewMockChiper(ctrl *gomock.Controller) *MockChiper {
-	mock := &MockChiper{ctrl: ctrl}
-	mock.recorder = &MockChiperMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockChiper) EXPECT() *MockChiperMockRecorder {
-	return m.recorder
-}
-
-// Decrypt mocks base method.
-func (m *MockChiper) Decrypt(text string) (string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Decrypt", text)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Decrypt indicates an expected call of Decrypt.
-func (mr *MockChiperMockRecorder) Decrypt(text any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Decrypt", reflect.TypeOf((*MockChiper)(nil).Decrypt), text)
-}
-
-// Encrypt mocks base method.
-func (m *MockChiper) Encrypt(text string) (string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Encrypt", text)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Encrypt indicates an expected call of Encrypt.
-func (mr *MockChiperMockRecorder) Encrypt(text any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Encrypt", reflect.TypeOf((*MockChiper)(nil).Encrypt), text)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VerifyIDToken", reflect.TypeOf((*MockOAuthGoogle)(nil).VerifyIDToken), ctx, token)
 }
 
 // MockSessionManager is a mock of SessionManager interface.

@@ -43,33 +43,18 @@ func (m *MockAuthSvc) EXPECT() *MockAuthSvcMockRecorder {
 }
 
 // AuthenticateGoogle mocks base method.
-func (m *MockAuthSvc) AuthenticateGoogle(ctx context.Context, code, state string) (domain.Tokens, error) {
+func (m *MockAuthSvc) AuthenticateGoogle(ctx context.Context, idToken string) (domain.Tokens, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AuthenticateGoogle", ctx, code, state)
+	ret := m.ctrl.Call(m, "AuthenticateGoogle", ctx, idToken)
 	ret0, _ := ret[0].(domain.Tokens)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // AuthenticateGoogle indicates an expected call of AuthenticateGoogle.
-func (mr *MockAuthSvcMockRecorder) AuthenticateGoogle(ctx, code, state any) *gomock.Call {
+func (mr *MockAuthSvcMockRecorder) AuthenticateGoogle(ctx, idToken any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthenticateGoogle", reflect.TypeOf((*MockAuthSvc)(nil).AuthenticateGoogle), ctx, code, state)
-}
-
-// GetGoogleRedirectURL mocks base method.
-func (m *MockAuthSvc) GetGoogleRedirectURL(ctx context.Context) (string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetGoogleRedirectURL", ctx)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetGoogleRedirectURL indicates an expected call of GetGoogleRedirectURL.
-func (mr *MockAuthSvcMockRecorder) GetGoogleRedirectURL(ctx any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetGoogleRedirectURL", reflect.TypeOf((*MockAuthSvc)(nil).GetGoogleRedirectURL), ctx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthenticateGoogle", reflect.TypeOf((*MockAuthSvc)(nil).AuthenticateGoogle), ctx, idToken)
 }
 
 // Logout mocks base method.

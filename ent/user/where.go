@@ -91,11 +91,6 @@ func ProviderUserID(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldProviderUserID, v))
 }
 
-// RefreshToken applies equality check predicate on the "refresh_token" field. It's identical to RefreshTokenEQ.
-func RefreshToken(v string) predicate.User {
-	return predicate.User(sql.FieldEQ(FieldRefreshToken, v))
-}
-
 // Provider applies equality check predicate on the "provider" field. It's identical to ProviderEQ.
 func Provider(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldProvider, v))
@@ -514,81 +509,6 @@ func ProviderUserIDEqualFold(v string) predicate.User {
 // ProviderUserIDContainsFold applies the ContainsFold predicate on the "provider_user_id" field.
 func ProviderUserIDContainsFold(v string) predicate.User {
 	return predicate.User(sql.FieldContainsFold(FieldProviderUserID, v))
-}
-
-// RefreshTokenEQ applies the EQ predicate on the "refresh_token" field.
-func RefreshTokenEQ(v string) predicate.User {
-	return predicate.User(sql.FieldEQ(FieldRefreshToken, v))
-}
-
-// RefreshTokenNEQ applies the NEQ predicate on the "refresh_token" field.
-func RefreshTokenNEQ(v string) predicate.User {
-	return predicate.User(sql.FieldNEQ(FieldRefreshToken, v))
-}
-
-// RefreshTokenIn applies the In predicate on the "refresh_token" field.
-func RefreshTokenIn(vs ...string) predicate.User {
-	return predicate.User(sql.FieldIn(FieldRefreshToken, vs...))
-}
-
-// RefreshTokenNotIn applies the NotIn predicate on the "refresh_token" field.
-func RefreshTokenNotIn(vs ...string) predicate.User {
-	return predicate.User(sql.FieldNotIn(FieldRefreshToken, vs...))
-}
-
-// RefreshTokenGT applies the GT predicate on the "refresh_token" field.
-func RefreshTokenGT(v string) predicate.User {
-	return predicate.User(sql.FieldGT(FieldRefreshToken, v))
-}
-
-// RefreshTokenGTE applies the GTE predicate on the "refresh_token" field.
-func RefreshTokenGTE(v string) predicate.User {
-	return predicate.User(sql.FieldGTE(FieldRefreshToken, v))
-}
-
-// RefreshTokenLT applies the LT predicate on the "refresh_token" field.
-func RefreshTokenLT(v string) predicate.User {
-	return predicate.User(sql.FieldLT(FieldRefreshToken, v))
-}
-
-// RefreshTokenLTE applies the LTE predicate on the "refresh_token" field.
-func RefreshTokenLTE(v string) predicate.User {
-	return predicate.User(sql.FieldLTE(FieldRefreshToken, v))
-}
-
-// RefreshTokenContains applies the Contains predicate on the "refresh_token" field.
-func RefreshTokenContains(v string) predicate.User {
-	return predicate.User(sql.FieldContains(FieldRefreshToken, v))
-}
-
-// RefreshTokenHasPrefix applies the HasPrefix predicate on the "refresh_token" field.
-func RefreshTokenHasPrefix(v string) predicate.User {
-	return predicate.User(sql.FieldHasPrefix(FieldRefreshToken, v))
-}
-
-// RefreshTokenHasSuffix applies the HasSuffix predicate on the "refresh_token" field.
-func RefreshTokenHasSuffix(v string) predicate.User {
-	return predicate.User(sql.FieldHasSuffix(FieldRefreshToken, v))
-}
-
-// RefreshTokenIsNil applies the IsNil predicate on the "refresh_token" field.
-func RefreshTokenIsNil() predicate.User {
-	return predicate.User(sql.FieldIsNull(FieldRefreshToken))
-}
-
-// RefreshTokenNotNil applies the NotNil predicate on the "refresh_token" field.
-func RefreshTokenNotNil() predicate.User {
-	return predicate.User(sql.FieldNotNull(FieldRefreshToken))
-}
-
-// RefreshTokenEqualFold applies the EqualFold predicate on the "refresh_token" field.
-func RefreshTokenEqualFold(v string) predicate.User {
-	return predicate.User(sql.FieldEqualFold(FieldRefreshToken, v))
-}
-
-// RefreshTokenContainsFold applies the ContainsFold predicate on the "refresh_token" field.
-func RefreshTokenContainsFold(v string) predicate.User {
-	return predicate.User(sql.FieldContainsFold(FieldRefreshToken, v))
 }
 
 // ProviderEQ applies the EQ predicate on the "provider" field.

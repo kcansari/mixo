@@ -12,9 +12,8 @@ type AuthResource struct {
 }
 
 type AuthHandler interface {
-	Google(w http.ResponseWriter, r *http.Request)
-	GoogleCallback(w http.ResponseWriter, r *http.Request)
 	Logout(w http.ResponseWriter, r *http.Request)
+	Verify(w http.ResponseWriter, r *http.Request)
 }
 
 type AuthMiddleware interface {
@@ -25,8 +24,7 @@ type AuthMiddleware interface {
 func (ar AuthResource) Routes() chi.Router {
 	r := chi.NewRouter()
 	r.Route("/google", func(r chi.Router) {
-		r.Get("/", ar.Auth.Google)
-		r.Get("/callback", ar.Auth.GoogleCallback)
+		r.Post("/verify", ar.Auth.Verify)
 	})
 
 	r.With(ar.AuthMiddleware.RequireAuth).Post("/logout", ar.Auth.Logout)

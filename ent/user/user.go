@@ -29,8 +29,6 @@ const (
 	FieldPicture = "picture"
 	// FieldProviderUserID holds the string denoting the provider_user_id field in the database.
 	FieldProviderUserID = "provider_user_id"
-	// FieldRefreshToken holds the string denoting the refresh_token field in the database.
-	FieldRefreshToken = "refresh_token"
 	// FieldProvider holds the string denoting the provider field in the database.
 	FieldProvider = "provider"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -62,7 +60,6 @@ var Columns = []string{
 	FieldFamilyName,
 	FieldPicture,
 	FieldProviderUserID,
-	FieldRefreshToken,
 	FieldProvider,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -137,11 +134,6 @@ func ByPicture(opts ...sql.OrderTermOption) OrderOption {
 // ByProviderUserID orders the results by the provider_user_id field.
 func ByProviderUserID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldProviderUserID, opts...).ToFunc()
-}
-
-// ByRefreshToken orders the results by the refresh_token field.
-func ByRefreshToken(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldRefreshToken, opts...).ToFunc()
 }
 
 // ByProvider orders the results by the provider field.

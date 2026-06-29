@@ -4,14 +4,11 @@ package services
 import (
 	"context"
 	"errors"
-	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/kcansari/mixo/internal/domain"
 	"github.com/kcansari/mixo/internal/oauth"
 	"github.com/kcansari/mixo/internal/store"
-	"golang.org/x/oauth2"
 )
 
 var (
@@ -19,34 +16,14 @@ var (
 	ErrGoogleStateRequired = errors.New("googleOAuth state is required")
 )
 
-const (
-	outhGoogleTag = "outh:google:"
-)
-
 type Auth struct {
 	OAuthGoogle    OAuthGoogle
-	Cache          Cache
 	UserStore      AuthUserStore
-	Chiper         Chiper
 	SessionManager SessionManager
 }
 
 type OAuthGoogle interface {
-	GetRedirectURL() (verifier, state, url string)
-	Exchange(ctx context.Context, code string, verifier string) (*oauth2.Token, error)
-	GetUserInfo(ctx context.Context, token *oauth2.Token) (user oauth.GoogleUserInfo, err error)
-}
-
-type Cache interface {
-	Get(ctx context.Context, key string) (string, error)
-	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error
-	Delete(ctx context.Context, key string) error
-	KeyCreator(prefix string, key string) (string, error)
-}
-
-type Chiper interface {
-	Encrypt(text string) (string, error)
-	Decrypt(text string) (string, error)
+	VerifyIDToken(ctx context.Context, token string) (*oauth.GoogleUserInfo, error)
 }
 
 type SessionManager interface {
@@ -59,100 +36,24 @@ type AuthUserStore interface {
 	GetByProviderUserID(ctx context.Context, providerUserID string) (*domain.User, error)
 }
 
-func NewAuth(oauthGoogle OAuthGoogle, cache Cache, userStore AuthUserStore, chiper Chiper, sessionManager SessionManager) *Auth {
+func NewAuth(oauthGoogle OAuthGoogle, userStore AuthUserStore, sessionManager SessionManager) *Auth {
 	return &Auth{
 		OAuthGoogle:    oauthGoogle,
-		Cache:          cache,
 		UserStore:      userStore,
-		Chiper:         chiper,
 		SessionManager: sessionManager,
 	}
 }
 
-func (a *Auth) GetGoogleRedirectURL(ctx context.Context) (url string, err error) {
-	verifier, state, url := a.OAuthGoogle.GetRedirectURL()
-	key, err := a.Cache.KeyCreator(outhGoogleTag, state)
-	if err != nil {
-		return "", err
-	}
+func (a *Auth) AuthenticateGoogle(ctx context.Context, idToken string) (domain.Tokens, error) {
 
-	err = a.Cache.Set(ctx, key, verifier, 5*time.Minute)
-	if err != nil {
-		return "", err
-	}
-
-	return url, nil
-}
-
-func (a *Auth) AuthenticateGoogle(ctx context.Context, code string, state string) (domain.Tokens, error) {
-
-	if strings.TrimSpace(code) == "" {
-		return domain.Tokens{}, ErrGoogleCodeRequired
-	}
-	if strings.TrimSpace(state) == "" {
-		return domain.Tokens{}, ErrGoogleStateRequired
-	}
-
-	key, err := a.Cache.KeyCreator(outhGoogleTag, state)
+	user, err := a.OAuthGoogle.VerifyIDToken(ctx, idToken)
 	if err != nil {
 		return domain.Tokens{}, err
 	}
 
-	verifier, err := a.Cache.Get(ctx, key)
+	userID, err := a.findOrCreateGoogleUser(ctx, user)
 	if err != nil {
 		return domain.Tokens{}, err
-	}
-
-	err = a.Cache.Delete(ctx, key)
-	if err != nil {
-		return domain.Tokens{}, err
-	}
-
-	token, err := a.OAuthGoogle.Exchange(ctx, code, verifier)
-	if err != nil {
-		return domain.Tokens{}, err
-	}
-
-	user, err := a.OAuthGoogle.GetUserInfo(ctx, token)
-	if err != nil {
-		return domain.Tokens{}, err
-	}
-
-	existingUser, err := a.UserStore.GetByProviderUserID(ctx, user.ID)
-	if err != nil {
-		if !errors.Is(err, store.ErrUserNotFound) {
-			return domain.Tokens{}, err
-		}
-	}
-
-	var userID uuid.UUID
-
-	if existingUser == nil {
-
-		encryptedRefreshToken, err := a.Chiper.Encrypt(token.RefreshToken)
-		if err != nil {
-			return domain.Tokens{}, err
-		}
-
-		userStore, err := a.UserStore.Create(ctx, domain.UserCreate{
-			UserFields: domain.UserFields{
-				Email:          user.Email,
-				ProviderUserID: user.ID,
-				EmailVerified:  user.EmailVerified,
-				Name:           user.Name,
-				GivenName:      user.GivenName,
-				FamilyName:     user.FamilyName,
-				Picture:        user.Picture,
-			},
-			RefreshToken: encryptedRefreshToken,
-		})
-		if err != nil {
-			return domain.Tokens{}, err
-		}
-		userID = userStore.ID
-
-	} else {
-		userID = existingUser.ID
 	}
 
 	tokens, err := a.SessionManager.Create(ctx, userID)
@@ -161,6 +62,32 @@ func (a *Auth) AuthenticateGoogle(ctx context.Context, code string, state string
 	}
 
 	return tokens, nil
+}
+
+func (a *Auth) findOrCreateGoogleUser(ctx context.Context, user *oauth.GoogleUserInfo) (uuid.UUID, error) {
+	existingUser, err := a.UserStore.GetByProviderUserID(ctx, user.ID)
+	if err == nil {
+		return existingUser.ID, nil
+	}
+	if !errors.Is(err, store.ErrUserNotFound) {
+		return uuid.Nil, err
+	}
+
+	createdUser, err := a.UserStore.Create(ctx, domain.UserCreate{
+		UserFields: domain.UserFields{
+			Email:          user.Email,
+			ProviderUserID: user.ID,
+			EmailVerified:  user.EmailVerified,
+			Name:           user.Name,
+			GivenName:      user.GivenName,
+			FamilyName:     user.FamilyName,
+			Picture:        user.Picture,
+		},
+	})
+	if err != nil {
+		return uuid.Nil, err
+	}
+	return createdUser.ID, nil
 }
 
 func (a *Auth) Logout(ctx context.Context, userID uuid.UUID) error {

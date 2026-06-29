@@ -15,7 +15,6 @@ type UserFields struct {
 
 type UserCreate struct {
 	UserFields
-	RefreshToken string
 }
 
 type User struct {

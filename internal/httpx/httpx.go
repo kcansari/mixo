@@ -8,7 +8,6 @@ import (
 	"net/http"
 
 	"github.com/go-chi/render"
-	"github.com/kcansari/mixo/internal/cache"
 	"github.com/kcansari/mixo/internal/serializer"
 	"github.com/kcansari/mixo/internal/store"
 )
@@ -56,10 +55,10 @@ var clientErrors = map[error]clientError{
 	store.ErrUserAlreadyExists:        {http.StatusConflict, "conflict", slog.LevelInfo},
 	serializer.ErrGoogleCodeRequired:  {http.StatusBadRequest, "invalid_request", slog.LevelInfo},
 	serializer.ErrGoogleStateRequired: {http.StatusBadRequest, "invalid_request", slog.LevelInfo},
-	cache.ErrRedisKeyDoesNotExist:     {http.StatusNotFound, "not_found", slog.LevelInfo},
 	http.ErrNoCookie:                  {http.StatusBadRequest, "no_cookie", slog.LevelInfo},
 	ErrUnauthorized:                   {http.StatusUnauthorized, "unauthorized", slog.LevelInfo},
 	ErrForbidden:                      {http.StatusForbidden, "forbidden", slog.LevelInfo},
+	serializer.ErrGoogleTokenRequired: {http.StatusBadRequest, "invalid_request", slog.LevelInfo},
 }
 
 func FromError(ctx context.Context, err error) render.Renderer {

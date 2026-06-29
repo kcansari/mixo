@@ -3,522 +3,314 @@ package oauth
 import (
 	"context"
 	"errors"
-	"io"
-	"net/http"
-	"net/url"
-	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/kcansari/mixo/internal/oauth/mocks"
 	"go.uber.org/mock/gomock"
-	"golang.org/x/oauth2"
+	"google.golang.org/api/idtoken"
 )
 
-func TestNewGoogleOAuth(t *testing.T) {
-	t.Parallel()
-
-	validConfig := GoogleConfig{
-		ClientID:     "client-id",
-		ClientSecret: "client-secret",
-		RedirectURL:  "https://example.com/oauth/google/callback",
+func TestGoogleOAuth_VerifyIDToken(t *testing.T) {
+	token := "token"
+	clientID := "clientID"
+	errValidator := errors.New("validator error")
+	userInfo := GoogleUserInfo{
+		ID:            "123456789",
+		Email:         "test@example.com",
+		EmailVerified: true,
+		Name:          "Test User",
+		GivenName:     "Test",
+		FamilyName:    "User",
+		Picture:       "https://example.com/picture.jpg",
 	}
-
+	optionalUserInfo := GoogleUserInfo{
+		ID:      "123456789",
+		Email:   userInfo.Email,
+		Name:    userInfo.Name,
+		Picture: userInfo.Picture,
+	}
 	tests := []struct {
 		name    string
-		config  GoogleConfig
-		want    *GoogleOAuth
+		setup   func(*mocks.MockIDTokenValidator)
+		want    *GoogleUserInfo
 		wantErr error
 	}{
 		{
-			name:   "configures Google OAuth",
-			config: validConfig,
-			want: &GoogleOAuth{
-				config: oauth2.Config{
-					ClientID:     validConfig.ClientID,
-					ClientSecret: validConfig.ClientSecret,
-					RedirectURL:  validConfig.RedirectURL,
-					Scopes:       []string{"openid", "email", "profile"},
-					Endpoint: oauth2.Endpoint{
-						AuthURL:  authURL,
-						TokenURL: tokenURL,
-					},
-				},
+			name:    "valid token",
+			want:    &userInfo,
+			wantErr: nil,
+			setup: func(MockIDTokenValidator *mocks.MockIDTokenValidator) {
+				MockIDTokenValidator.EXPECT().
+					Validate(context.Background(), token, clientID).
+					Return(&idtoken.Payload{
+						Subject: userInfo.ID,
+						Claims: map[string]interface{}{
+							"email":          userInfo.Email,
+							"email_verified": userInfo.EmailVerified,
+							"name":           userInfo.Name,
+							"given_name":     userInfo.GivenName,
+							"family_name":    userInfo.FamilyName,
+							"picture":        userInfo.Picture,
+						},
+					}, nil)
 			},
 		},
 		{
-			name: "rejects empty client ID",
-			config: GoogleConfig{
-				ClientSecret: validConfig.ClientSecret,
-				RedirectURL:  validConfig.RedirectURL,
+			name:    "validator returns error",
+			want:    nil,
+			wantErr: errValidator,
+			setup: func(MockIDTokenValidator *mocks.MockIDTokenValidator) {
+				MockIDTokenValidator.EXPECT().
+					Validate(context.Background(), token, clientID).
+					Return(nil, errValidator)
 			},
-			wantErr: ErrGoogleClientIDRequired,
 		},
 		{
-			name: "rejects whitespace-only client ID",
-			config: GoogleConfig{
-				ClientID:     " \t\n",
-				ClientSecret: validConfig.ClientSecret,
-				RedirectURL:  validConfig.RedirectURL,
+			name:    "empty subject",
+			want:    nil,
+			wantErr: ErrEmptySubject,
+			setup: func(MockIDTokenValidator *mocks.MockIDTokenValidator) {
+				MockIDTokenValidator.EXPECT().
+					Validate(context.Background(), token, clientID).
+					Return(&idtoken.Payload{
+						Subject: "",
+						Claims:  map[string]interface{}{},
+					}, nil)
 			},
-			wantErr: ErrGoogleClientIDRequired,
 		},
 		{
-			name: "rejects empty client secret",
-			config: GoogleConfig{
-				ClientID:    validConfig.ClientID,
-				RedirectURL: validConfig.RedirectURL,
+			name:    "empty payload",
+			want:    nil,
+			wantErr: ErrEmptyPayload,
+			setup: func(MockIDTokenValidator *mocks.MockIDTokenValidator) {
+				MockIDTokenValidator.EXPECT().
+					Validate(context.Background(), token, clientID).
+					Return(nil, nil)
 			},
-			wantErr: ErrGoogleClientSecretRequired,
 		},
 		{
-			name: "rejects whitespace-only client secret",
-			config: GoogleConfig{
-				ClientID:     validConfig.ClientID,
-				ClientSecret: " \t\n",
-				RedirectURL:  validConfig.RedirectURL,
+			name:    "invalid email claim",
+			want:    nil,
+			wantErr: ErrInvalidEmailClaim,
+			setup: func(MockIDTokenValidator *mocks.MockIDTokenValidator) {
+				MockIDTokenValidator.EXPECT().
+					Validate(context.Background(), token, clientID).
+					Return(&idtoken.Payload{
+						Subject: "test",
+						Claims: map[string]interface{}{
+							"email": "",
+						},
+					}, nil)
 			},
-			wantErr: ErrGoogleClientSecretRequired,
 		},
 		{
-			name: "rejects empty redirect URL",
-			config: GoogleConfig{
-				ClientID:     validConfig.ClientID,
-				ClientSecret: validConfig.ClientSecret,
+			name:    "optinal string claim",
+			want:    &optionalUserInfo,
+			wantErr: nil,
+			setup: func(MockIDTokenValidator *mocks.MockIDTokenValidator) {
+				MockIDTokenValidator.EXPECT().
+					Validate(context.Background(), token, clientID).
+					Return(&idtoken.Payload{
+						Subject: optionalUserInfo.ID,
+						Claims: map[string]interface{}{
+							"email":   optionalUserInfo.Email,
+							"name":    optionalUserInfo.Name,
+							"picture": optionalUserInfo.Picture,
+						},
+					}, nil)
 			},
-			wantErr: ErrGoogleRedirectURLRequired,
-		},
-		{
-			name: "rejects whitespace-only redirect URL",
-			config: GoogleConfig{
-				ClientID:     validConfig.ClientID,
-				ClientSecret: validConfig.ClientSecret,
-				RedirectURL:  " \t\n",
-			},
-			wantErr: ErrGoogleRedirectURLRequired,
 		},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
+			ctrl := gomock.NewController(t)
+			mockIDTokenValidator := mocks.NewMockIDTokenValidator(ctrl)
 
-			got, err := NewGoogleOAuth(tt.config)
+			if tt.setup != nil {
+				tt.setup(mockIDTokenValidator)
+			}
+
+			oauthSvc, err := NewGoogleOAuth(clientID, mockIDTokenValidator)
+			if err != nil {
+				t.Fatalf("NewGoogleOAuth() error = %v", err)
+			}
+
+			got, err := oauthSvc.VerifyIDToken(context.Background(), token)
 			if !errors.Is(err, tt.wantErr) {
-				t.Fatalf("NewGoogleOAuth() error = %v, want %v", err, tt.wantErr)
+				t.Fatalf("VerifyIDToken() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			if diff := cmp.Diff(
-				tt.want,
-				got,
-				cmp.AllowUnexported(GoogleOAuth{}),
-				cmpopts.IgnoreUnexported(oauth2.Config{}),
-			); diff != "" {
-				t.Errorf("NewGoogleOAuth() mismatch (-want +got):\n%s", diff)
+
+			if tt.wantErr == nil {
+				if diff := cmp.Diff(tt.want, got); diff != "" {
+					t.Errorf("VerifyIDToken() mismatch (-want +got):\n%s", diff)
+				}
 			}
 		})
 	}
 }
 
-func TestGoogleOAuthGetRedirectURL(t *testing.T) {
-	t.Parallel()
-
-	config := GoogleConfig{
-		ClientID:     "client-id",
-		ClientSecret: "client-secret",
-		RedirectURL:  "https://example.com/oauth/google/callback",
-	}
-	googleOAuth, err := NewGoogleOAuth(config)
-	if err != nil {
-		t.Fatalf("NewGoogleOAuth() error = %v, want nil", err)
-	}
-
-	verifier, state, redirectURL := googleOAuth.GetRedirectURL()
-
-	if verifier == "" {
-		t.Error("GetRedirectURL() verifier is empty")
-	}
-	if state == "" {
-		t.Error("GetRedirectURL() state is empty")
-	}
-
-	parsedURL, err := url.Parse(redirectURL)
-	if err != nil {
-		t.Fatalf("url.Parse(%q) error = %v", redirectURL, err)
-	}
-
-	wantAuthURL, err := url.Parse(authURL)
-	if err != nil {
-		t.Fatalf("url.Parse(%q) error = %v", authURL, err)
-	}
-	if parsedURL.Scheme != wantAuthURL.Scheme ||
-		parsedURL.Host != wantAuthURL.Host ||
-		parsedURL.Path != wantAuthURL.Path {
-		t.Errorf(
-			"GetRedirectURL() authorization endpoint = %q, want %q",
-			parsedURL.Scheme+"://"+parsedURL.Host+parsedURL.Path,
-			authURL,
-		)
-	}
-
-	query := parsedURL.Query()
-	wantQuery := map[string]string{
-		"access_type":           "offline",
-		"client_id":             config.ClientID,
-		"code_challenge":        oauth2.S256ChallengeFromVerifier(verifier),
-		"code_challenge_method": "S256",
-		"redirect_uri":          config.RedirectURL,
-		"response_type":         "code",
-		"state":                 state,
-	}
-	for key, want := range wantQuery {
-		if got := query.Get(key); got != want {
-			t.Errorf("GetRedirectURL() query parameter %q = %q, want %q", key, got, want)
-		}
-	}
-
-	wantScopes := []string{"openid", "email", "profile"}
-	if diff := cmp.Diff(wantScopes, strings.Fields(query.Get("scope"))); diff != "" {
-		t.Errorf("GetRedirectURL() scopes mismatch (-want +got):\n%s", diff)
-	}
-
-	secondVerifier, secondState, _ := googleOAuth.GetRedirectURL()
-	if secondVerifier == verifier {
-		t.Error("GetRedirectURL() returned the same verifier on consecutive calls")
-	}
-	if secondState == state {
-		t.Error("GetRedirectURL() returned the same state on consecutive calls")
-	}
-}
-
-func TestGoogleOAuthExchange(t *testing.T) {
-	t.Parallel()
-
-	const (
-		code     = "authorization-code"
-		verifier = "pkce-verifier"
-	)
-
-	config := GoogleConfig{
-		ClientID:     "client-id",
-		ClientSecret: "client-secret",
-		RedirectURL:  "https://example.com/oauth/google/callback",
-	}
-
+func Test_stringClaim(t *testing.T) {
 	tests := []struct {
-		name          string
-		statusCode    int
-		response      string
-		transportErr  error
-		cancelContext bool
-		wantToken     *oauth2.Token
-		wantErr       bool
-		wantErrIs     error
+		name   string
+		claims map[string]any
+		key    string
+		want   string
+		want2  bool
 	}{
 		{
-			name:       "exchanges authorization code",
-			statusCode: http.StatusOK,
-			response: `{
-				"access_token": "access-token",
-				"token_type": "Bearer",
-				"refresh_token": "refresh-token"
-			}`,
-			wantToken: &oauth2.Token{
-				AccessToken:  "access-token",
-				TokenType:    "Bearer",
-				RefreshToken: "refresh-token",
+			name: "get exist key",
+			claims: map[string]any{
+				"key": "value",
 			},
+			key:   "key",
+			want:  "value",
+			want2: true,
 		},
 		{
-			name:       "returns error for invalid token JSON",
-			statusCode: http.StatusOK,
-			response:   `{"access_token":`,
-			wantErr:    true,
-		},
-		{
-			name:       "returns error for HTTP error status",
-			statusCode: http.StatusBadRequest,
-			response:   `{"error":"invalid_grant"}`,
-			wantErr:    true,
-		},
-		{
-			name:         "returns error for transport failure",
-			transportErr: errors.New("transport failed"),
-			wantErr:      true,
-		},
-		{
-			name:          "returns error when context is canceled",
-			statusCode:    http.StatusOK,
-			cancelContext: true,
-			wantErr:       true,
-			wantErrIs:     context.Canceled,
+			name: "get non-exist key",
+			claims: map[string]any{
+				"key": "value",
+			},
+			key:   "non-exist-key",
+			want:  "",
+			want2: false,
 		},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			ctrl := gomock.NewController(t)
-			transport := mocks.NewMockRoundTripper(ctrl)
-
-			type contextKey struct{}
-			ctx := context.WithValue(context.Background(), contextKey{}, "supplied-context")
-			ctx, cancel := context.WithCancel(ctx)
-			defer cancel()
-			if tt.cancelContext {
-				cancel()
+			got, got2 := stringClaim(tt.claims, tt.key)
+			if got != tt.want {
+				t.Errorf("stringClaim() = %v, want %v", got, tt.want)
 			}
-
-			transport.EXPECT().
-				RoundTrip(gomock.Any()).
-				DoAndReturn(func(req *http.Request) (*http.Response, error) {
-					if req.Method != http.MethodPost {
-						t.Errorf("Exchange() method = %q, want %q", req.Method, http.MethodPost)
-					}
-					if req.URL.String() != tokenURL {
-						t.Errorf("Exchange() URL = %q, want %q", req.URL.String(), tokenURL)
-					}
-					if got := req.Context().Value(contextKey{}); got != "supplied-context" {
-						t.Errorf("Exchange() context value = %v, want %q", got, "supplied-context")
-					}
-					if err := req.ParseForm(); err != nil {
-						t.Errorf("ParseForm() error = %v", err)
-						return nil, err
-					}
-					wantForm := map[string]string{
-						"code":          code,
-						"code_verifier": verifier,
-						"redirect_uri":  config.RedirectURL,
-					}
-					for key, want := range wantForm {
-						if got := req.PostForm.Get(key); got != want {
-							t.Errorf("Exchange() form value %q = %q, want %q", key, got, want)
-						}
-					}
-
-					if tt.transportErr != nil {
-						return nil, tt.transportErr
-					}
-					if err := req.Context().Err(); err != nil {
-						return nil, err
-					}
-					response := newHTTPResponse(t, tt.statusCode, tt.response)
-					response.Header.Set("Content-Type", "application/json")
-					return response, nil
-				}).
-				MinTimes(1)
-
-			httpClient := &http.Client{Transport: transport}
-			ctx = context.WithValue(ctx, oauth2.HTTPClient, httpClient)
-
-			googleOAuth, err := NewGoogleOAuth(GoogleConfig{
-				ClientID:     "client-id",
-				ClientSecret: "client-secret",
-				RedirectURL:  "https://example.com/oauth/google/callback",
-			})
-			if err != nil {
-				t.Fatalf("NewGoogleOAuth() error = %v, want nil", err)
-			}
-
-			gotToken, err := googleOAuth.Exchange(ctx, code, verifier)
-			if tt.wantErr {
-				if err == nil {
-					t.Fatal("Exchange() error = nil, want non-nil")
-				}
-			} else if err != nil {
-				t.Fatalf("Exchange() error = %v, want nil", err)
-			}
-			if tt.wantErrIs != nil && !errors.Is(err, tt.wantErrIs) {
-				t.Errorf("Exchange() error = %v, want %v", err, tt.wantErrIs)
-			}
-
-			if diff := cmp.Diff(
-				tt.wantToken,
-				gotToken,
-				cmpopts.IgnoreUnexported(oauth2.Token{}),
-			); diff != "" {
-				t.Errorf("Exchange() token mismatch (-want +got):\n%s", diff)
+			if got2 != tt.want2 {
+				t.Errorf("stringClaim() = %v, want %v", got2, tt.want2)
 			}
 		})
 	}
 }
 
-func TestGoogleOAuthGetUserInfo(t *testing.T) {
-	t.Parallel()
-
-	token := &oauth2.Token{AccessToken: "access-token"}
-	transportErr := errors.New("transport failed")
-
+func Test_optionalStringClaim(t *testing.T) {
 	tests := []struct {
-		name          string
-		statusCode    int
-		responseBody  string
-		transportErr  error
-		cancelContext bool
-		nilContext    bool
-		want          GoogleUserInfo
-		wantErr       bool
-		wantErrIs     error
+		name   string
+		claims map[string]any
+		key    string
+		want   string
 	}{
 		{
-			name:       "returns complete user information",
-			statusCode: http.StatusOK,
-			responseBody: `{
-				"id": "google-user-id",
-				"email": "user@example.com",
-				"verified_email": true,
-				"name": "Example User",
-				"given_name": "Example",
-				"family_name": "User",
-				"picture": "https://example.com/picture.jpg"
-			}`,
-			want: GoogleUserInfo{
-				ID:            "google-user-id",
-				Email:         "user@example.com",
-				EmailVerified: true,
-				Name:          "Example User",
-				GivenName:     "Example",
-				FamilyName:    "User",
-				Picture:       "https://example.com/picture.jpg",
+			name: "get exist key",
+			claims: map[string]any{
+				"key": "value",
 			},
+			key:  "key",
+			want: "value",
 		},
 		{
-			name:         "returns required user information",
-			statusCode:   http.StatusOK,
-			responseBody: `{"id":"google-user-id","email":"user@example.com"}`,
-			want: GoogleUserInfo{
-				ID:    "google-user-id",
-				Email: "user@example.com",
+			name: "get non-exist key",
+			claims: map[string]any{
+				"key": "value",
 			},
-		},
-		{
-			name:         "returns error when user ID is missing",
-			statusCode:   http.StatusOK,
-			responseBody: `{"email":"user@example.com"}`,
-			wantErr:      true,
-			wantErrIs:    ErrGoogleProviderUserIDRequired,
-		},
-		{
-			name:         "returns error when email is missing",
-			statusCode:   http.StatusOK,
-			responseBody: `{"id":"google-user-id"}`,
-			wantErr:      true,
-			wantErrIs:    ErrGoogleEmailRequired,
-		},
-		{
-			name:         "returns error for non-200 response",
-			statusCode:   http.StatusUnauthorized,
-			responseBody: `{"error":"unauthorized"}`,
-			wantErr:      true,
-		},
-		{
-			name:         "returns error for malformed JSON",
-			statusCode:   http.StatusOK,
-			responseBody: `{"id":`,
-			wantErr:      true,
-		},
-		{
-			name:         "returns error for transport failure",
-			transportErr: transportErr,
-			wantErr:      true,
-		},
-		{
-			name:          "returns error for cancelled context",
-			cancelContext: true,
-			wantErr:       true,
-			wantErrIs:     context.Canceled,
-		},
-		{
-			name:       "returns error for nil context",
-			nilContext: true,
-			wantErr:    true,
+			key:  "non-exist-key",
+			want: "",
 		},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			ctrl := gomock.NewController(t)
-			transport := mocks.NewMockRoundTripper(ctrl)
-
-			type contextKey struct{}
-			var ctx context.Context
-			if !tt.nilContext {
-				ctx = context.WithValue(context.Background(), contextKey{}, "supplied-context")
-				cancelCtx, cancel := context.WithCancel(ctx)
-				defer cancel()
-				ctx = cancelCtx
-				if tt.cancelContext {
-					cancel()
-				}
-
-				transport.EXPECT().
-					RoundTrip(gomock.Any()).
-					DoAndReturn(func(req *http.Request) (*http.Response, error) {
-						if req.Method != http.MethodGet {
-							t.Errorf("GetUserInfo() method = %q, want %q", req.Method, http.MethodGet)
-						}
-						if req.URL.String() != "https://www.googleapis.com/oauth2/v2/userinfo" {
-							t.Errorf(
-								"GetUserInfo() URL = %q, want Google user-info URL",
-								req.URL.String(),
-							)
-						}
-						if got := req.Header.Get("Authorization"); got != "Bearer access-token" {
-							t.Errorf("GetUserInfo() Authorization = %q, want %q", got, "Bearer access-token")
-						}
-						if got := req.Context().Value(contextKey{}); got != "supplied-context" {
-							t.Errorf("GetUserInfo() context value = %v, want %q", got, "supplied-context")
-						}
-
-						if tt.transportErr != nil {
-							return nil, tt.transportErr
-						}
-						if err := req.Context().Err(); err != nil {
-							return nil, err
-						}
-						return newHTTPResponse(t, tt.statusCode, tt.responseBody), nil
-					})
-
-				httpClient := &http.Client{Transport: transport}
-				ctx = context.WithValue(ctx, oauth2.HTTPClient, httpClient)
-			}
-
-			googleOAuth, err := NewGoogleOAuth(GoogleConfig{
-				ClientID:     "client-id",
-				ClientSecret: "client-secret",
-				RedirectURL:  "https://example.com/oauth/google/callback",
-			})
-			if err != nil {
-				t.Fatalf("NewGoogleOAuth() error = %v, want nil", err)
-			}
-
-			got, err := googleOAuth.GetUserInfo(ctx, token)
-			if tt.wantErr {
-				if err == nil {
-					t.Fatal("GetUserInfo() error = nil, want non-nil")
-				}
-			} else if err != nil {
-				t.Fatalf("GetUserInfo() error = %v, want nil", err)
-			}
-			if tt.wantErrIs != nil && !errors.Is(err, tt.wantErrIs) {
-				t.Errorf("GetUserInfo() error = %v, want %v", err, tt.wantErrIs)
-			}
-			if diff := cmp.Diff(tt.want, got); diff != "" {
-				t.Errorf("GetUserInfo() mismatch (-want +got):\n%s", diff)
+			got := optionalStringClaim(tt.claims, tt.key)
+			if got != tt.want {
+				t.Errorf("optionalStringClaim() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func newHTTPResponse(t *testing.T, statusCode int, body string) *http.Response {
-	t.Helper()
+func Test_boolClaim(t *testing.T) {
+	tests := []struct {
+		name   string
+		claims map[string]any
+		key    string
+		want   bool
+	}{
+		{
+			name: "get exist key",
+			claims: map[string]any{
+				"key": true,
+			},
+			key:  "key",
+			want: true,
+		},
+		{
+			name: "get non-exist key",
+			claims: map[string]any{
+				"key": true,
+			},
+			key:  "non-exist-key",
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := boolClaim(tt.claims, tt.key)
+			if got != tt.want {
+				t.Errorf("boolClaim() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
 
-	return &http.Response{
-		StatusCode: statusCode,
-		Header:     make(http.Header),
-		Body:       io.NopCloser(strings.NewReader(body)),
+func TestNewGoogleOAuth(t *testing.T) {
+	clientID := "client-id"
+	tests := []struct {
+		name      string
+		clientID  string
+		validator IDTokenValidator
+		wantErr   error
+	}{
+		{
+			name:     "correct init",
+			clientID: clientID,
+			validator: func() IDTokenValidator {
+				ctrl := gomock.NewController(t)
+				return mocks.NewMockIDTokenValidator(ctrl)
+			}(),
+			wantErr: nil,
+		},
+		{
+			name:      "empty client id",
+			clientID:  "",
+			validator: nil,
+			wantErr:   ErrGoogleClientIDRequired,
+		},
+		{
+			name:      "nil validator",
+			clientID:  clientID,
+			validator: nil,
+			wantErr:   ErrIDTokenValidatorRequired,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, gotErr := NewGoogleOAuth(tt.clientID, tt.validator)
+
+			if !errors.Is(gotErr, tt.wantErr) {
+				t.Fatalf("NewGoogleOAuth() error = %v, wantErr %v", gotErr, tt.wantErr)
+			}
+
+			if tt.wantErr != nil {
+				return
+			}
+
+			if got == nil {
+				t.Fatal("NewGoogleOAuth() = nil, want GoogleOAuth")
+			}
+
+			if got.ClientID != tt.clientID {
+				t.Errorf("NewGoogleOAuth().ClientID = %q, want %q", got.ClientID, tt.clientID)
+			}
+
+			if got.validator == nil {
+				t.Error("NewGoogleOAuth().validator = nil, want validator")
+			}
+		})
 	}
 }

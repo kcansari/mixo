@@ -566,7 +566,6 @@ type UserMutation struct {
 	family_name           *string
 	picture               *string
 	provider_user_id      *string
-	refresh_token         *string
 	provider              *string
 	created_at            *time.Time
 	updated_at            *time.Time
@@ -936,55 +935,6 @@ func (m *UserMutation) ResetProviderUserID() {
 	m.provider_user_id = nil
 }
 
-// SetRefreshToken sets the "refresh_token" field.
-func (m *UserMutation) SetRefreshToken(s string) {
-	m.refresh_token = &s
-}
-
-// RefreshToken returns the value of the "refresh_token" field in the mutation.
-func (m *UserMutation) RefreshToken() (r string, exists bool) {
-	v := m.refresh_token
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldRefreshToken returns the old "refresh_token" field's value of the User entity.
-// If the User object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *UserMutation) OldRefreshToken(ctx context.Context) (v *string, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldRefreshToken is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldRefreshToken requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldRefreshToken: %w", err)
-	}
-	return oldValue.RefreshToken, nil
-}
-
-// ClearRefreshToken clears the value of the "refresh_token" field.
-func (m *UserMutation) ClearRefreshToken() {
-	m.refresh_token = nil
-	m.clearedFields[user.FieldRefreshToken] = struct{}{}
-}
-
-// RefreshTokenCleared returns if the "refresh_token" field was cleared in this mutation.
-func (m *UserMutation) RefreshTokenCleared() bool {
-	_, ok := m.clearedFields[user.FieldRefreshToken]
-	return ok
-}
-
-// ResetRefreshToken resets all changes to the "refresh_token" field.
-func (m *UserMutation) ResetRefreshToken() {
-	m.refresh_token = nil
-	delete(m.clearedFields, user.FieldRefreshToken)
-}
-
 // SetProvider sets the "provider" field.
 func (m *UserMutation) SetProvider(s string) {
 	m.provider = &s
@@ -1217,7 +1167,7 @@ func (m *UserMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserMutation) Fields() []string {
-	fields := make([]string, 0, 12)
+	fields := make([]string, 0, 11)
 	if m.email != nil {
 		fields = append(fields, user.FieldEmail)
 	}
@@ -1238,9 +1188,6 @@ func (m *UserMutation) Fields() []string {
 	}
 	if m.provider_user_id != nil {
 		fields = append(fields, user.FieldProviderUserID)
-	}
-	if m.refresh_token != nil {
-		fields = append(fields, user.FieldRefreshToken)
 	}
 	if m.provider != nil {
 		fields = append(fields, user.FieldProvider)
@@ -1276,8 +1223,6 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 		return m.Picture()
 	case user.FieldProviderUserID:
 		return m.ProviderUserID()
-	case user.FieldRefreshToken:
-		return m.RefreshToken()
 	case user.FieldProvider:
 		return m.Provider()
 	case user.FieldCreatedAt:
@@ -1309,8 +1254,6 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldPicture(ctx)
 	case user.FieldProviderUserID:
 		return m.OldProviderUserID(ctx)
-	case user.FieldRefreshToken:
-		return m.OldRefreshToken(ctx)
 	case user.FieldProvider:
 		return m.OldProvider(ctx)
 	case user.FieldCreatedAt:
@@ -1377,13 +1320,6 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetProviderUserID(v)
 		return nil
-	case user.FieldRefreshToken:
-		v, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetRefreshToken(v)
-		return nil
 	case user.FieldProvider:
 		v, ok := value.(string)
 		if !ok {
@@ -1441,11 +1377,7 @@ func (m *UserMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *UserMutation) ClearedFields() []string {
-	var fields []string
-	if m.FieldCleared(user.FieldRefreshToken) {
-		fields = append(fields, user.FieldRefreshToken)
-	}
-	return fields
+	return nil
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -1458,11 +1390,6 @@ func (m *UserMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *UserMutation) ClearField(name string) error {
-	switch name {
-	case user.FieldRefreshToken:
-		m.ClearRefreshToken()
-		return nil
-	}
 	return fmt.Errorf("unknown User nullable field %s", name)
 }
 
@@ -1490,9 +1417,6 @@ func (m *UserMutation) ResetField(name string) error {
 		return nil
 	case user.FieldProviderUserID:
 		m.ResetProviderUserID()
-		return nil
-	case user.FieldRefreshToken:
-		m.ResetRefreshToken()
 		return nil
 	case user.FieldProvider:
 		m.ResetProvider()

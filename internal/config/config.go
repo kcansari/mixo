@@ -14,8 +14,7 @@ type Config struct {
 }
 
 type DBConfig struct {
-	PG    PGConfig
-	Redis RedisConfig
+	PG PGConfig
 }
 
 type PGConfig struct {
@@ -24,13 +23,6 @@ type PGConfig struct {
 	User     string
 	Name     string
 	Password string
-}
-
-type RedisConfig struct {
-	Host     string
-	Port     string
-	Password string
-	DB       int
 }
 
 type AppConfig struct {
@@ -55,22 +47,13 @@ type MailConfig struct {
 }
 
 type GoogleConfig struct {
-	ClientID     string
-	ClientSecret string
-	RedirectURL  string
+	ClientID string
 }
 
 func Load() (*Config, error) {
 	pgHost := getEnv("POSTGRES_HOST", "localhost")
 	pgPort := getEnv("POSTGRES_PORT", "5432")
 
-	redisHost := getEnv("REDIS_HOST", "localhost")
-	redisPort := getEnv("REDIS_PORT", "6379")
-	redisDB := getEnv("REDIS_DB", "0")
-	intRedisDB, err := strconv.Atoi(redisDB)
-	if err != nil {
-		return nil, err
-	}
 	development := getEnv("DEVELOPMENT", "local")
 
 	pgUser, err := requiredEnv("POSTGRES_USER")
@@ -132,19 +115,6 @@ func Load() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	googleClientSecret, err := requiredEnv("GOOGLE_CLIENT_SECRET")
-	if err != nil {
-		return nil, err
-	}
-	googleRedirectURL, err := requiredEnv("GOOGLE_REDIRECT_URL")
-	if err != nil {
-		return nil, err
-	}
-
-	redisPW, err := requiredEnv("REDIS_PASSWORD")
-	if err != nil {
-		return nil, err
-	}
 
 	awsRegion, err := requiredEnv("AWS_REGION")
 	if err != nil {
@@ -163,12 +133,6 @@ func Load() (*Config, error) {
 				User:     pgUser,
 				Name:     pgName,
 				Password: pgPassword,
-			},
-			Redis: RedisConfig{
-				Host:     redisHost,
-				Port:     redisPort,
-				DB:       intRedisDB,
-				Password: redisPW,
 			},
 		},
 		App: AppConfig{
@@ -189,9 +153,7 @@ func Load() (*Config, error) {
 			Pass: mailPass,
 		},
 		Google: GoogleConfig{
-			ClientID:     googleClientID,
-			ClientSecret: googleClientSecret,
-			RedirectURL:  googleRedirectURL,
+			ClientID: googleClientID,
 		},
 	}, nil
 

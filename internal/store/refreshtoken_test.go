@@ -32,7 +32,6 @@ func seedRefreshTokenUser(t *testing.T) uuid.UUID {
 			FamilyName:     "test family name",
 			Picture:        "test-user-picture",
 		},
-		RefreshToken: "test-refresh-token",
 	})
 }
 

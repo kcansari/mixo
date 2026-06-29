@@ -72,20 +72,6 @@ func (_c *UserCreate) SetProviderUserID(v string) *UserCreate {
 	return _c
 }
 
-// SetRefreshToken sets the "refresh_token" field.
-func (_c *UserCreate) SetRefreshToken(v string) *UserCreate {
-	_c.mutation.SetRefreshToken(v)
-	return _c
-}
-
-// SetNillableRefreshToken sets the "refresh_token" field if the given value is not nil.
-func (_c *UserCreate) SetNillableRefreshToken(v *string) *UserCreate {
-	if v != nil {
-		_c.SetRefreshToken(*v)
-	}
-	return _c
-}
-
 // SetProvider sets the "provider" field.
 func (_c *UserCreate) SetProvider(v string) *UserCreate {
 	_c.mutation.SetProvider(v)
@@ -329,10 +315,6 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ProviderUserID(); ok {
 		_spec.SetField(user.FieldProviderUserID, field.TypeString, value)
 		_node.ProviderUserID = value
-	}
-	if value, ok := _c.mutation.RefreshToken(); ok {
-		_spec.SetField(user.FieldRefreshToken, field.TypeString, value)
-		_node.RefreshToken = &value
 	}
 	if value, ok := _c.mutation.Provider(); ok {
 		_spec.SetField(user.FieldProvider, field.TypeString, value)
