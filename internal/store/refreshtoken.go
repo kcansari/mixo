@@ -60,13 +60,27 @@ func (r *RefreshToken) Revoke(ctx context.Context, userID uuid.UUID) error {
 		Save(ctx)
 
 	if err != nil {
-		if ent.IsNotFound(err) {
-			return fmt.Errorf("store.refresh_token.Revoke: user: %s %w", userID, ErrRefreshTokenNotFound)
-		}
 		return fmt.Errorf("store.refresh_token.Revoke: user: %s %w", userID, err)
 	}
 	if affected == 0 {
 		return fmt.Errorf("store.refresh_token.Revoke: user: %s %w", userID, ErrRefreshTokenNotFound)
+	}
+
+	return nil
+}
+func (r *RefreshToken) RevokeByTokenHash(ctx context.Context, tokenHash string) error {
+	affected, err := r.client.Refresh_Token.Update().
+		Where(
+			refresh_token.TokenHashEQ(tokenHash),
+		).
+		SetRevokedAt(time.Now()).
+		Save(ctx)
+
+	if err != nil {
+		return fmt.Errorf("store.refresh_token.RevokeByTokenHash: token hash: %s %w", tokenHash, err)
+	}
+	if affected == 0 {
+		return fmt.Errorf("store.refresh_token.RevokeByTokenHash: token hash: %s %w", tokenHash, ErrRefreshTokenNotFound)
 	}
 
 	return nil
@@ -101,6 +115,7 @@ func (r *RefreshToken) GetByTokenHash(ctx context.Context, tokenHash string) (*d
 			refresh_token.TokenHashEQ(tokenHash),
 			refresh_token.RevokedAtIsNil(),
 		).
+		WithOwner().
 		First(ctx)
 
 	if err != nil {

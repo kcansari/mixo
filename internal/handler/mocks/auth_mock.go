@@ -57,6 +57,21 @@ func (mr *MockAuthSvcMockRecorder) AuthenticateGoogle(ctx, idToken any) *gomock.
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthenticateGoogle", reflect.TypeOf((*MockAuthSvc)(nil).AuthenticateGoogle), ctx, idToken)
 }
 
+// GetNewTokens mocks base method.
+func (m *MockAuthSvc) GetNewTokens(ctx context.Context, refreshToken string) (domain.Tokens, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetNewTokens", ctx, refreshToken)
+	ret0, _ := ret[0].(domain.Tokens)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetNewTokens indicates an expected call of GetNewTokens.
+func (mr *MockAuthSvcMockRecorder) GetNewTokens(ctx, refreshToken any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNewTokens", reflect.TypeOf((*MockAuthSvc)(nil).GetNewTokens), ctx, refreshToken)
+}
+
 // Logout mocks base method.
 func (m *MockAuthSvc) Logout(ctx context.Context, userID uuid.UUID) error {
 	m.ctrl.T.Helper()

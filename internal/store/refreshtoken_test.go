@@ -246,3 +246,120 @@ func TestRefreshToken_GetByUserID(t *testing.T) {
 		})
 	}
 }
+
+func TestRefreshToken_GetByTokenHash(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name      string
+		tokenHash string
+		before    func(t *testing.T, userID uuid.UUID, tokenHash string)
+		wantErr   error
+	}{
+		{
+			name:      "returns refresh token",
+			tokenHash: "refresh-token-hash",
+			before: func(t *testing.T, userID uuid.UUID, tokenHash string) {
+				t.Helper()
+				if err := NewRefreshToken(testClient).Create(ctx, tokenHash, userID); err != nil {
+					t.Fatalf("Create() setup error = %v", err)
+				}
+			},
+		},
+		{
+			name:    "returns not found refresh token",
+			wantErr: ErrRefreshTokenNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resetRefreshTokens(t)
+			userID := seedRefreshTokenUser(t)
+
+			if tt.before != nil {
+				tt.before(t, userID, tt.tokenHash)
+			}
+
+			got, err := NewRefreshToken(testClient).GetByTokenHash(ctx, tt.tokenHash)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("GetByTokenHash() error = %v, want %v", err, tt.wantErr)
+			}
+			if tt.wantErr != nil {
+				if got != nil {
+					t.Errorf("GetByTokenHash() = %+v, want nil", got)
+				}
+				return
+			}
+			if got == nil {
+				t.Fatal("GetByTokenHash() = nil, want refresh token")
+			}
+			if got.UserID != userID {
+				t.Errorf("GetByTokenHash() user ID = %v, want %v", got.UserID, userID)
+			}
+			if got.TokenHash != tt.tokenHash {
+				t.Errorf("GetByTokenHash() token hash = %q, want %q", got.TokenHash, tt.tokenHash)
+			}
+			if got.RevokedAt != nil {
+				t.Errorf("GetByTokenHash() revoked at = %v, want nil", got.RevokedAt)
+			}
+			if got.CreatedAt.IsZero() {
+				t.Error("GetByTokenHash() created at is zero, want timestamp")
+			}
+		})
+	}
+}
+
+func TestRefreshToken_RevokeByTokenHash(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name    string
+		before  func(t *testing.T, userID uuid.UUID, tokenHash string)
+		wantErr error
+	}{
+		{
+			name: "revokes active refresh token",
+			before: func(t *testing.T, userID uuid.UUID, tokenHash string) {
+				t.Helper()
+				if err := NewRefreshToken(testClient).Create(ctx, tokenHash, userID); err != nil {
+					t.Fatalf("Create() setup error = %v", err)
+				}
+			},
+		},
+		{
+			name:    "returns not found when the token hash does not exist",
+			wantErr: ErrRefreshTokenNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resetRefreshTokens(t)
+			userID := seedRefreshTokenUser(t)
+			tokenHash := uuid.NewString()
+
+			if tt.before != nil {
+				tt.before(t, userID, tokenHash)
+			}
+
+			err := NewRefreshToken(testClient).RevokeByTokenHash(ctx, tokenHash)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("RevokeByTokenHash() error = %v, want %v", err, tt.wantErr)
+			}
+			if tt.wantErr != nil {
+				return
+			}
+
+			got, err := testClient.Refresh_Token.Query().
+				Where(refresh_token.TokenHashEQ(tokenHash)).
+				Only(ctx)
+			if err != nil {
+				t.Fatalf("query refresh token: %v", err)
+			}
+			if got.RevokedAt == nil {
+				t.Error("RevokeByTokenHash() revoked at is nil, want a timestamp")
+			}
+		})
+	}
+}

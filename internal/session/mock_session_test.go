@@ -156,6 +156,20 @@ func (mr *MockTokenStoreMockRecorder) Revoke(ctx, userID any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Revoke", reflect.TypeOf((*MockTokenStore)(nil).Revoke), ctx, userID)
 }
 
+// RevokeByTokenHash mocks base method.
+func (m *MockTokenStore) RevokeByTokenHash(ctx context.Context, tokenHash string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RevokeByTokenHash", ctx, tokenHash)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RevokeByTokenHash indicates an expected call of RevokeByTokenHash.
+func (mr *MockTokenStoreMockRecorder) RevokeByTokenHash(ctx, tokenHash any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RevokeByTokenHash", reflect.TypeOf((*MockTokenStore)(nil).RevokeByTokenHash), ctx, tokenHash)
+}
+
 // MockHMACSvc is a mock of HMACSvc interface.
 type MockHMACSvc struct {
 	ctrl     *gomock.Controller

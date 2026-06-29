@@ -7,9 +7,10 @@ import (
 )
 
 var (
-	ErrGoogleCodeRequired  = errors.New("googleOAuth code is required")
-	ErrGoogleStateRequired = errors.New("googleOAuth state is required")
-	ErrGoogleTokenRequired = errors.New("googleOAuth token is required")
+	ErrGoogleCodeRequired   = errors.New("googleOAuth code is required")
+	ErrGoogleStateRequired  = errors.New("googleOAuth state is required")
+	ErrGoogleTokenRequired  = errors.New("googleOAuth token is required")
+	ErrRefreshTokenRequired = errors.New("refresh token is required")
 )
 
 type GoogleCallbackRequest struct {
@@ -58,4 +59,24 @@ func (g *GoogleVerifyRequest) Bind(r *http.Request) error {
 
 func NewGoogleVerifyResponse(accessToken, refreshToken string) *GoogleVerifyResponse {
 	return &GoogleVerifyResponse{AccessToken: accessToken, RefreshToken: refreshToken}
+}
+
+type RefreshRequest struct {
+	RefreshToken string `json:"refresh_token"`
+}
+
+func (rr *RefreshRequest) Bind(r *http.Request) error {
+	if strings.TrimSpace(rr.RefreshToken) == "" {
+		return ErrRefreshTokenRequired
+	}
+	return nil
+}
+
+type RefreshResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
+func NewRefreshResponse(accessToken, refreshToken string) *RefreshResponse {
+	return &RefreshResponse{AccessToken: accessToken, RefreshToken: refreshToken}
 }

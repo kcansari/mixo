@@ -11,6 +11,7 @@ import (
 	"github.com/kcansari/mixo/internal/domain"
 	"github.com/kcansari/mixo/internal/security"
 	"github.com/kcansari/mixo/internal/store"
+	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
 
@@ -509,6 +510,165 @@ func TestSession_IsValidRefreshToken(t *testing.T) {
 			}
 			if tt.wantErr == nil && isValid != tt.want {
 				t.Fatalf("IsValidRefreshToken() isValid = %v, want %v", isValid, tt.want)
+			}
+		})
+	}
+}
+
+func TestSession_RevokeRefreshToken(t *testing.T) {
+
+	const (
+		refreshToken     = "refresh-token"
+		refreshTokenHash = "refresh-token-hash"
+	)
+
+	tests := []struct {
+		name    string
+		setup   func(*MockHMACSvc, *MockTokenStore)
+		wantErr error
+	}{
+		{
+			name: "revoke the exist refresh token",
+			setup: func(hmacSvc *MockHMACSvc, tokenStore *MockTokenStore) {
+				gomock.InOrder(
+					hmacSvc.EXPECT().
+						Sign(refreshToken).
+						Return(refreshTokenHash),
+					tokenStore.EXPECT().
+						RevokeByTokenHash(gomock.Any(), refreshTokenHash).
+						Return(nil),
+				)
+			},
+		},
+		{
+			name:    "not exist refresh token",
+			wantErr: store.ErrRefreshTokenNotFound,
+			setup: func(hmacSvc *MockHMACSvc, tokenStore *MockTokenStore) {
+				gomock.InOrder(
+					hmacSvc.EXPECT().
+						Sign(refreshToken).
+						Return(refreshTokenHash),
+					tokenStore.EXPECT().
+						RevokeByTokenHash(gomock.Any(), refreshTokenHash).
+						Return(store.ErrRefreshTokenNotFound),
+				)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			hmacSvc := NewMockHMACSvc(ctrl)
+			tokenStore := NewMockTokenStore(ctrl)
+
+			tt.setup(hmacSvc, tokenStore)
+
+			session := NewSession(nil, hmacSvc, tokenStore)
+
+			err := session.RevokeRefreshToken(context.Background(), refreshToken)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("RevokeRefreshToken() error = %v, want %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestSession_CheckIsRevokedRefreshToken(t *testing.T) {
+
+	const (
+		refreshToken     = "refresh-token"
+		refreshTokenHash = "refresh-token-hash"
+	)
+
+	revokeTime := time.Now()
+
+	tests := []struct {
+		name    string
+		setup   func(*MockHMACSvc, *MockTokenStore)
+		want    bool
+		wantErr error
+	}{
+		{
+			name: "not revoked token",
+			want: false,
+			setup: func(hmacSvc *MockHMACSvc, tokenStore *MockTokenStore) {
+				gomock.InOrder(
+					hmacSvc.EXPECT().
+						Sign(refreshToken).
+						Return(refreshTokenHash),
+					tokenStore.EXPECT().
+						GetByTokenHash(gomock.Any(), refreshTokenHash).
+						Return(&domain.RefreshToken{
+							RevokedAt: nil,
+						}, nil),
+				)
+			},
+		},
+		{
+			name: "revoked token",
+			want: true,
+			setup: func(hmacSvc *MockHMACSvc, tokenStore *MockTokenStore) {
+				gomock.InOrder(
+					hmacSvc.EXPECT().
+						Sign(refreshToken).
+						Return(refreshTokenHash),
+					tokenStore.EXPECT().
+						GetByTokenHash(gomock.Any(), refreshTokenHash).
+						Return(&domain.RefreshToken{
+							RevokedAt: &revokeTime,
+						}, nil),
+				)
+			},
+		},
+		{
+			name: "not found token",
+			want: true,
+			setup: func(hmacSvc *MockHMACSvc, tokenStore *MockTokenStore) {
+				gomock.InOrder(
+					hmacSvc.EXPECT().
+						Sign(refreshToken).
+						Return(refreshTokenHash),
+					tokenStore.EXPECT().
+						GetByTokenHash(gomock.Any(), refreshTokenHash).
+						Return(nil, store.ErrRefreshTokenNotFound),
+				)
+			},
+		},
+		{
+			name:    "an error when fetching token",
+			want:    false,
+			wantErr: assert.AnError,
+			setup: func(hmacSvc *MockHMACSvc, tokenStore *MockTokenStore) {
+				gomock.InOrder(
+					hmacSvc.EXPECT().
+						Sign(refreshToken).
+						Return(refreshTokenHash),
+					tokenStore.EXPECT().
+						GetByTokenHash(gomock.Any(), refreshTokenHash).
+						Return(nil, assert.AnError),
+				)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			hmacSvc := NewMockHMACSvc(ctrl)
+			tokenStore := NewMockTokenStore(ctrl)
+
+			tt.setup(hmacSvc, tokenStore)
+
+			session := NewSession(nil, hmacSvc, tokenStore)
+
+			isRevoked, err := session.CheckIsRevokedRefreshToken(context.Background(), refreshToken)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("CheckIsRevokedRefreshToken() error = %v, want %v", err, tt.wantErr)
+			}
+
+			if tt.wantErr == nil && isRevoked != tt.want {
+				t.Fatalf("CheckIsRevokedRefreshToken() isRevoked = %v, want %v", isRevoked, tt.want)
 			}
 		})
 	}

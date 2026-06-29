@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/kcansari/mixo/internal/domain"
 	"github.com/kcansari/mixo/internal/security"
+	"github.com/kcansari/mixo/internal/store"
 )
 
 var (
@@ -38,6 +39,7 @@ type TokenStore interface {
 	Revoke(ctx context.Context, userID uuid.UUID) error
 	GetByTokenHash(ctx context.Context, tokenHash string) (*domain.RefreshToken, error)
 	GetByUserID(ctx context.Context, userID uuid.UUID) (*domain.RefreshToken, error)
+	RevokeByTokenHash(ctx context.Context, tokenHash string) error
 }
 
 type HMACSvc interface {
@@ -88,6 +90,11 @@ func (s *Session) Destroy(ctx context.Context, userID uuid.UUID) error {
 	return nil
 }
 
+func (s *Session) RevokeRefreshToken(ctx context.Context, refreshToken string) error {
+	hashedRefreshToken := s.HMACSvc.Sign(refreshToken)
+	return s.TokenStore.RevokeByTokenHash(ctx, hashedRefreshToken)
+}
+
 // GetAccesToken generates a new access token for the given refresh token
 func (s *Session) GetAccessToken(ctx context.Context, refreshToken string) (string, error) {
 
@@ -127,6 +134,18 @@ func (s *Session) GetInfo(tokenString string) (SessionInfo, error) {
 	return SessionInfo{
 		CustomClaims: claims,
 	}, nil
+}
+
+func (s *Session) CheckIsRevokedRefreshToken(ctx context.Context, refreshToken string) (bool, error) {
+	hashedRefreshToken := s.HMACSvc.Sign(refreshToken)
+	token, err := s.TokenStore.GetByTokenHash(ctx, hashedRefreshToken)
+	if err != nil {
+		if errors.Is(err, store.ErrRefreshTokenNotFound) {
+			return true, nil
+		}
+		return false, err
+	}
+	return token.RevokedAt != nil, nil
 }
 
 // IsValidRefreshToken checks if the given refresh token is valid

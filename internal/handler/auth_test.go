@@ -200,3 +200,91 @@ func TestAuth_Verify(t *testing.T) {
 		})
 	}
 }
+
+func TestAuth_Refresh(t *testing.T) {
+	tokens := domain.Tokens{
+		AccessToken:  "acces-token",
+		RefreshToken: "refresh-token",
+	}
+
+	tests := []struct {
+		name         string
+		setup        func(mockAuthSvc *mocks.MockAuthSvc)
+		wantStatus   int
+		modifyBody   func(*strings.Reader)
+		wantResponse *serializer.GoogleVerifyResponse
+	}{
+		{
+			name: "success verify",
+			setup: func(mockAuthSvc *mocks.MockAuthSvc) {
+				mockAuthSvc.EXPECT().GetNewTokens(gomock.Any(), gomock.Any()).Return(tokens, nil).Times(1)
+			},
+			wantStatus: http.StatusOK,
+			wantResponse: &serializer.GoogleVerifyResponse{
+				AccessToken:  tokens.AccessToken,
+				RefreshToken: tokens.RefreshToken,
+			},
+		},
+		{
+			name: "service error",
+			setup: func(mockAuthSvc *mocks.MockAuthSvc) {
+				mockAuthSvc.EXPECT().GetNewTokens(gomock.Any(), gomock.Any()).Return(domain.Tokens{}, assert.AnError).Times(1)
+			},
+			wantStatus:   http.StatusInternalServerError,
+			wantResponse: nil,
+		},
+		{
+			name: "wrong body",
+			modifyBody: func(body *strings.Reader) {
+				*body = *strings.NewReader(`{"wrongField":"refresh-token"}`)
+			},
+			wantStatus:   http.StatusBadRequest,
+			wantResponse: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			mockAuthSvc := mocks.NewMockAuthSvc(ctrl)
+
+			body := strings.NewReader(`{"refresh_token":"refresh-token"}`)
+			if tt.modifyBody != nil {
+				tt.modifyBody(body)
+			}
+			req := httptest.NewRequest(http.MethodPost, "/auth/refresh", body)
+			req.Header.Set("Content-Type", "application/json")
+
+			w := httptest.NewRecorder()
+
+			if tt.setup != nil {
+				tt.setup(mockAuthSvc)
+			}
+
+			auth := Auth{
+				FrontendURL: "frontend-url",
+				AuthSvc:     mockAuthSvc,
+			}
+
+			handler := NewAuth(auth)
+
+			handler.Refresh(w, req)
+
+			resp := w.Result()
+
+			if resp.StatusCode != tt.wantStatus {
+				t.Fatalf("expected status %d, got %d", tt.wantStatus, resp.StatusCode)
+			}
+
+			if tt.wantResponse != nil {
+				var response serializer.GoogleVerifyResponse
+				if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+					t.Fatalf("failed to decode response: %v", err)
+				}
+
+				if diff := cmp.Diff(tt.wantResponse, &response); diff != "" {
+					t.Errorf("response mismatch (-want +got):\n%s", diff)
+				}
+			}
+		})
+	}
+}

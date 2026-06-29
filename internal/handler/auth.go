@@ -22,6 +22,7 @@ type Auth struct {
 type AuthSvc interface {
 	AuthenticateGoogle(ctx context.Context, idToken string) (domain.Tokens, error)
 	Logout(ctx context.Context, userID uuid.UUID) error
+	GetNewTokens(ctx context.Context, refreshToken string) (domain.Tokens, error)
 }
 
 func NewAuth(auth Auth) *Auth {
@@ -70,4 +71,21 @@ func (a *Auth) Verify(w http.ResponseWriter, r *http.Request) {
 	}
 
 	render.JSON(w, r, serializer.NewGoogleVerifyResponse(tokens.AccessToken, tokens.RefreshToken))
+}
+
+func (a *Auth) Refresh(w http.ResponseWriter, r *http.Request) {
+	data := &serializer.RefreshRequest{}
+
+	if err := render.Bind(r, data); err != nil {
+		httpx.Render(w, r, httpx.FromError(r.Context(), err))
+		return
+	}
+
+	tokens, err := a.AuthSvc.GetNewTokens(r.Context(), data.RefreshToken)
+	if err != nil {
+		httpx.Render(w, r, httpx.FromError(r.Context(), err))
+		return
+	}
+
+	render.JSON(w, r, serializer.NewRefreshResponse(tokens.AccessToken, tokens.RefreshToken))
 }

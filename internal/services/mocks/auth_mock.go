@@ -16,6 +16,7 @@ import (
 	uuid "github.com/google/uuid"
 	domain "github.com/kcansari/mixo/internal/domain"
 	oauth "github.com/kcansari/mixo/internal/oauth"
+	session "github.com/kcansari/mixo/internal/session"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -82,6 +83,21 @@ func (m *MockSessionManager) EXPECT() *MockSessionManagerMockRecorder {
 	return m.recorder
 }
 
+// CheckIsRevokedRefreshToken mocks base method.
+func (m *MockSessionManager) CheckIsRevokedRefreshToken(ctx context.Context, refreshToken string) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CheckIsRevokedRefreshToken", ctx, refreshToken)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CheckIsRevokedRefreshToken indicates an expected call of CheckIsRevokedRefreshToken.
+func (mr *MockSessionManagerMockRecorder) CheckIsRevokedRefreshToken(ctx, refreshToken any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckIsRevokedRefreshToken", reflect.TypeOf((*MockSessionManager)(nil).CheckIsRevokedRefreshToken), ctx, refreshToken)
+}
+
 // Create mocks base method.
 func (m *MockSessionManager) Create(ctx context.Context, userID uuid.UUID) (domain.Tokens, error) {
 	m.ctrl.T.Helper()
@@ -109,6 +125,35 @@ func (m *MockSessionManager) Destroy(ctx context.Context, userID uuid.UUID) erro
 func (mr *MockSessionManagerMockRecorder) Destroy(ctx, userID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Destroy", reflect.TypeOf((*MockSessionManager)(nil).Destroy), ctx, userID)
+}
+
+// GetInfo mocks base method.
+func (m *MockSessionManager) GetInfo(tokenString string) (session.SessionInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetInfo", tokenString)
+	ret0, _ := ret[0].(session.SessionInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetInfo indicates an expected call of GetInfo.
+func (mr *MockSessionManagerMockRecorder) GetInfo(tokenString any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInfo", reflect.TypeOf((*MockSessionManager)(nil).GetInfo), tokenString)
+}
+
+// RevokeRefreshToken mocks base method.
+func (m *MockSessionManager) RevokeRefreshToken(ctx context.Context, refreshToken string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RevokeRefreshToken", ctx, refreshToken)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RevokeRefreshToken indicates an expected call of RevokeRefreshToken.
+func (mr *MockSessionManagerMockRecorder) RevokeRefreshToken(ctx, refreshToken any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RevokeRefreshToken", reflect.TypeOf((*MockSessionManager)(nil).RevokeRefreshToken), ctx, refreshToken)
 }
 
 // MockAuthUserStore is a mock of AuthUserStore interface.
