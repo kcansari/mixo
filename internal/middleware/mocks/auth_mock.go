@@ -11,6 +11,7 @@ package mocks
 
 import (
 	context "context"
+	http "net/http"
 	reflect "reflect"
 
 	uuid "github.com/google/uuid"
@@ -130,4 +131,43 @@ func (m *MockSessionManager) IsValidRefreshToken(ctx context.Context, refreshTok
 func (mr *MockSessionManagerMockRecorder) IsValidRefreshToken(ctx, refreshToken any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsValidRefreshToken", reflect.TypeOf((*MockSessionManager)(nil).IsValidRefreshToken), ctx, refreshToken)
+}
+
+// MockJWTSvc is a mock of JWTSvc interface.
+type MockJWTSvc struct {
+	ctrl     *gomock.Controller
+	recorder *MockJWTSvcMockRecorder
+	isgomock struct{}
+}
+
+// MockJWTSvcMockRecorder is the mock recorder for MockJWTSvc.
+type MockJWTSvcMockRecorder struct {
+	mock *MockJWTSvc
+}
+
+// NewMockJWTSvc creates a new mock instance.
+func NewMockJWTSvc(ctrl *gomock.Controller) *MockJWTSvc {
+	mock := &MockJWTSvc{ctrl: ctrl}
+	mock.recorder = &MockJWTSvcMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockJWTSvc) EXPECT() *MockJWTSvcMockRecorder {
+	return m.recorder
+}
+
+// ExtractBearerToken mocks base method.
+func (m *MockJWTSvc) ExtractBearerToken(req *http.Request) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ExtractBearerToken", req)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ExtractBearerToken indicates an expected call of ExtractBearerToken.
+func (mr *MockJWTSvcMockRecorder) ExtractBearerToken(req any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExtractBearerToken", reflect.TypeOf((*MockJWTSvc)(nil).ExtractBearerToken), req)
 }
