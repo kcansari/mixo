@@ -3,10 +3,12 @@ package security
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v5/request"
 	"github.com/google/uuid"
 )
 
@@ -98,6 +100,15 @@ func (j *JWTService) ParseJWT(t string) (*CustomClaims, error) {
 	}
 
 	return claims, nil
+}
+
+func (j *JWTService) ExtractBearerToken(req *http.Request) (string, error) {
+	token, err := request.BearerExtractor{}.ExtractToken(req)
+	if err != nil {
+		return "", fmt.Errorf("security.jwt.ExtractBearerToken: %w", request.ErrNoTokenInRequest)
+	}
+
+	return token, nil
 }
 
 func (t TokenType) IsValid() bool {

@@ -2,10 +2,12 @@ package security
 
 import (
 	"errors"
+	"net/http"
 	"testing"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v5/request"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 )
@@ -218,6 +220,73 @@ func TestJWTService_ParseJWT(t *testing.T) {
 				t.Errorf("claims mismatch (-want +got):\n%s", diff)
 			}
 
+		})
+	}
+}
+
+func TestJWTService_ExtractBearerToken(t *testing.T) {
+	tests := []struct {
+		name    string
+		req     *http.Request
+		want    string
+		wantErr error
+	}{
+		{
+			name: "valid bearer token",
+			req: &http.Request{
+				Header: map[string][]string{
+					"Authorization": {"Bearer valid-token"},
+				},
+			},
+			want:    "valid-token",
+			wantErr: nil,
+		},
+		{
+			name: "no space bearer token",
+			req: &http.Request{
+				Header: map[string][]string{
+					"Authorization": {"Bearervalid-token"},
+				},
+			},
+			want:    "",
+			wantErr: request.ErrNoTokenInRequest,
+		},
+		{
+			name: "missing authorization header",
+			req: &http.Request{
+				Header: map[string][]string{},
+			},
+			want:    "",
+			wantErr: request.ErrNoTokenInRequest,
+		},
+		{
+			name: "token without bearer prefix",
+			req: &http.Request{
+				Header: map[string][]string{
+					"Authorization": {"valid-token"},
+				},
+			},
+			want:    "",
+			wantErr: request.ErrNoTokenInRequest,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			j, err := NewJWTService("super-secret")
+
+			if err != nil {
+				t.Fatalf("NewJWTService() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			token, gotErr := j.ExtractBearerToken(tt.req)
+
+			if !errors.Is(gotErr, tt.wantErr) {
+				t.Errorf("ExtractBearerToken() error = %v, wantErr %v", gotErr, tt.wantErr)
+			}
+
+			if token != tt.want {
+				t.Errorf("ExtractBearerToken() = %v, want %v", token, tt.want)
+			}
 		})
 	}
 }
