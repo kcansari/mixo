@@ -10,12 +10,10 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/uuid"
 	"github.com/kcansari/mixo/internal/domain"
 	"github.com/kcansari/mixo/internal/handler/mocks"
 	"github.com/kcansari/mixo/internal/middleware"
-	"github.com/kcansari/mixo/internal/security"
 	"github.com/kcansari/mixo/internal/serializer"
 	"github.com/stretchr/testify/assert"
 
@@ -23,73 +21,68 @@ import (
 )
 
 func TestAuth_Logout(t *testing.T) {
+	t.Parallel()
+
 	userID := uuid.New()
-	frontendURL := "http://localhost:3000"
 	errService := errors.New("service error")
 
 	tests := []struct {
-		name       string
-		setup      func(ctx context.Context, mockAuthSvc *mocks.MockAuthSvc)
-		wantStatus int
-		wantCookie []*http.Cookie
-		wantURL    string
-		setCookie  bool
+		name          string
+		addUserID     bool
+		contextUserID string
+		setup         func(ctx context.Context, mockAuthSvc *mocks.MockAuthSvc)
+		wantStatus    int
 	}{
 		{
-			name: "success logout",
+			name:          "mobile client receives no content after logout",
+			addUserID:     true,
+			contextUserID: userID.String(),
 			setup: func(ctx context.Context, mockAuthSvc *mocks.MockAuthSvc) {
 				mockAuthSvc.EXPECT().Logout(ctx, userID).Return(nil).Times(1)
 			},
-			wantStatus: http.StatusFound,
-			wantCookie: []*http.Cookie{
-				{
-					Name:     string(security.TokenTypeAccess),
-					Value:    "",
-					Path:     "/",
-					MaxAge:   middleware.DeleteCookieNow,
-					HttpOnly: true,
-					Secure:   true,
-					SameSite: http.SameSiteStrictMode,
-				},
-				{
-					Name:     string(security.TokenTypeRefresh),
-					Value:    "",
-					Path:     "/",
-					MaxAge:   middleware.DeleteCookieNow,
-					HttpOnly: true,
-					Secure:   true,
-					SameSite: http.SameSiteStrictMode,
-				},
-			},
-			wantURL:   frontendURL,
-			setCookie: true,
+			wantStatus: http.StatusNoContent,
 		},
 		{
-			name: "error from service",
+			name:          "error from service",
+			addUserID:     true,
+			contextUserID: userID.String(),
 			setup: func(ctx context.Context, mockAuthSvc *mocks.MockAuthSvc) {
 				mockAuthSvc.EXPECT().Logout(ctx, userID).Return(errService).Times(1)
 			},
 			wantStatus: http.StatusInternalServerError,
-			setCookie:  true,
+		},
+		{
+			name:       "missing user id in context",
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:          "invalid user id in context",
+			addUserID:     true,
+			contextUserID: "invalid-user-id",
+			wantStatus:    http.StatusInternalServerError,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			ctrl := gomock.NewController(t)
 			mockAuthSvc := mocks.NewMockAuthSvc(ctrl)
 
 			req := httptest.NewRequest(http.MethodPost, "/auth/google/logout", nil)
 
 			w := httptest.NewRecorder()
-			ctx := context.WithValue(req.Context(), middleware.ContextKeyUserID, userID.String())
+			ctx := req.Context()
+			if tt.addUserID {
+				ctx = context.WithValue(ctx, middleware.ContextKeyUserID, tt.contextUserID)
+			}
 
 			if tt.setup != nil {
 				tt.setup(ctx, mockAuthSvc)
 			}
 
 			auth := Auth{
-				FrontendURL: frontendURL,
-				AuthSvc:     mockAuthSvc,
+				AuthSvc: mockAuthSvc,
 			}
 
 			handler := NewAuth(auth)
@@ -100,14 +93,6 @@ func TestAuth_Logout(t *testing.T) {
 
 			if resp.StatusCode != tt.wantStatus {
 				t.Fatalf("expected status %d, got %d", tt.wantStatus, resp.StatusCode)
-			}
-
-			if tt.wantCookie != nil {
-				cookies := resp.Cookies()
-
-				if diff := cmp.Diff(tt.wantCookie, cookies, cmpopts.IgnoreFields(http.Cookie{}, "Raw", "RawExpires")); diff != "" {
-					t.Errorf("cookies mismatch (-want +got):\n%s", diff)
-				}
 			}
 		})
 	}
@@ -173,8 +158,7 @@ func TestAuth_Verify(t *testing.T) {
 			}
 
 			auth := Auth{
-				FrontendURL: "frontend-url",
-				AuthSvc:     mockAuthSvc,
+				AuthSvc: mockAuthSvc,
 			}
 
 			handler := NewAuth(auth)
@@ -261,8 +245,7 @@ func TestAuth_Refresh(t *testing.T) {
 			}
 
 			auth := Auth{
-				FrontendURL: "frontend-url",
-				AuthSvc:     mockAuthSvc,
+				AuthSvc: mockAuthSvc,
 			}
 
 			handler := NewAuth(auth)

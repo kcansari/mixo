@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/render"
+	"github.com/golang-jwt/jwt/v5/request"
 	"github.com/kcansari/mixo/internal/serializer"
 	"github.com/kcansari/mixo/internal/services"
 	"github.com/kcansari/mixo/internal/store"
@@ -62,6 +63,7 @@ var clientErrors = map[error]clientError{
 	serializer.ErrGoogleTokenRequired:  {http.StatusBadRequest, "invalid_request", slog.LevelInfo},
 	services.ErrRefreshTokenExpired:    {http.StatusUnauthorized, "unauthorized", slog.LevelInfo},
 	serializer.ErrRefreshTokenRequired: {http.StatusBadRequest, "invalid_request", slog.LevelInfo},
+	request.ErrNoTokenInRequest:        {http.StatusBadRequest, "invalid_request", slog.LevelInfo},
 }
 
 func FromError(ctx context.Context, err error) render.Renderer {

@@ -28,7 +28,6 @@ type PGConfig struct {
 type AppConfig struct {
 	JWTSecret       string
 	Development     string
-	FrontendURL     string
 	CipherSecretKey string
 	HMAC_SECRET_KEY string
 	AWS             AwsConfig
@@ -75,8 +74,6 @@ func Load() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	frontendURL := getEnv("FRONTEND_URL", "http://localhost:3000")
 
 	cipherSecretKey, err := requiredEnv("CIPHER_SECRET_KEY")
 	if err != nil {
@@ -138,7 +135,6 @@ func Load() (*Config, error) {
 		App: AppConfig{
 			JWTSecret:       jwtSecret,
 			Development:     development,
-			FrontendURL:     frontendURL,
 			CipherSecretKey: cipherSecretKey,
 			HMAC_SECRET_KEY: hmacSecretKey,
 			AWS: AwsConfig{

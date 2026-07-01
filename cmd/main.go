@@ -139,11 +139,10 @@ func run() http.Handler {
 	//userSvc := services.NewUser(userStore)
 
 	authHandler := handler.NewAuth(handler.Auth{
-		AuthSvc:     authSvc,
-		FrontendURL: cfg.App.FrontendURL,
+		AuthSvc: authSvc,
 	})
 
-	authMiddleware := appmiddleware.NewAuth(sessionManager)
+	authMiddleware := appmiddleware.NewAuth(sessionManager, jwtSvc)
 
 	r.Mount("/auth", routes.AuthResource{Auth: authHandler, AuthMiddleware: authMiddleware}.Routes())
 

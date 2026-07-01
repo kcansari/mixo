@@ -10,13 +10,11 @@ import (
 	"github.com/kcansari/mixo/internal/domain"
 	"github.com/kcansari/mixo/internal/httpx"
 	"github.com/kcansari/mixo/internal/middleware"
-	"github.com/kcansari/mixo/internal/security"
 	"github.com/kcansari/mixo/internal/serializer"
 )
 
 type Auth struct {
-	AuthSvc     AuthSvc
-	FrontendURL string
+	AuthSvc AuthSvc
 }
 
 type AuthSvc interface {
@@ -26,7 +24,7 @@ type AuthSvc interface {
 }
 
 func NewAuth(auth Auth) *Auth {
-	return &Auth{AuthSvc: auth.AuthSvc, FrontendURL: auth.FrontendURL}
+	return &Auth{AuthSvc: auth.AuthSvc}
 }
 
 func (a *Auth) Logout(w http.ResponseWriter, r *http.Request) {
@@ -50,10 +48,7 @@ func (a *Auth) Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	middleware.SetAuthCookie(w, string(security.TokenTypeAccess), "", middleware.DeleteCookieNow)
-	middleware.SetAuthCookie(w, string(security.TokenTypeRefresh), "", middleware.DeleteCookieNow)
-
-	http.Redirect(w, r, a.FrontendURL, http.StatusFound)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (a *Auth) Verify(w http.ResponseWriter, r *http.Request) {
