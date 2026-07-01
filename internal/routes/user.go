@@ -12,14 +12,14 @@ type UserResource struct {
 }
 
 type UserHandler interface {
-	GetByID(w http.ResponseWriter, r *http.Request)
+	GetUser(w http.ResponseWriter, r *http.Request)
 }
 
 func (ur UserResource) Routes() chi.Router {
 	r := chi.NewRouter()
 	r.Use(ur.AuthMiddleware.RequireAuth)
 
-	r.Get("/me", ur.User.GetByID)
+	r.Get("/me", ur.User.GetUser)
 
 	return r
 }

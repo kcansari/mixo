@@ -17,7 +17,7 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-func TestUser_GetByID(t *testing.T) {
+func TestUser_GetUser(t *testing.T) {
 	user := &domain.User{
 		ID: uuid.New(),
 		UserFields: domain.UserFields{
@@ -83,9 +83,9 @@ func TestUser_GetByID(t *testing.T) {
 			handler := NewUser(user)
 
 			if !tt.ignoreCtx {
-				handler.GetByID(w, req.WithContext(ctx))
+				handler.GetUser(w, req.WithContext(ctx))
 			} else {
-				handler.GetByID(w, req)
+				handler.GetUser(w, req)
 			}
 
 			resp := w.Result()

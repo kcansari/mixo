@@ -23,7 +23,7 @@ func NewUser(user User) *User {
 	return &User{UserSvc: user.UserSvc}
 }
 
-func (u *User) GetByID(w http.ResponseWriter, r *http.Request) {
+func (u *User) GetUser(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.UserIDFromContext(r.Context())
 	if !ok {
 		httpx.Render(w, r, httpx.FromError(r.Context(), httpx.ErrUnauthorized))
