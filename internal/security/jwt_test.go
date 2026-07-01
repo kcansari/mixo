@@ -141,8 +141,16 @@ func TestJWTService_ParseJWT(t *testing.T) {
 			name:      "expired token",
 			exp:       time.Now().Add(-1 * time.Hour),
 			tokenType: TokenTypeAccess,
-			claims:    nil,
-			wantErr:   jwt.ErrTokenExpired,
+			claims: &CustomClaims{
+				TokenType: TokenTypeAccess,
+				RegisteredClaims: jwt.RegisteredClaims{
+					Subject:   userID.String(),
+					ExpiresAt: jwt.NewNumericDate(time.Now().Add(-1 * time.Hour)),
+					IssuedAt:  jwt.NewNumericDate(time.Now()),
+					Issuer:    JWTIssuer,
+				},
+			},
+			wantErr: jwt.ErrTokenExpired,
 		},
 		{
 			name:      "malformed token",

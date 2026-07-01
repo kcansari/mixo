@@ -281,19 +281,22 @@ func TestAuth_GetNewTokens(t *testing.T) {
 						CustomClaims: &security.CustomClaims{
 							TokenType: security.TokenTypeRefresh,
 							RegisteredClaims: jwt.RegisteredClaims{
-								Subject: "24d2aeb3-ebf7-47ce-bdf3-7087c0488711",
+								ExpiresAt: jwt.NewNumericDate(time.Now().Add(-24 * time.Hour)),
+								IssuedAt:  jwt.NewNumericDate(time.Now()),
+								Issuer:    security.JWTIssuer,
+								Subject:   "24d2aeb3-ebf7-47ce-bdf3-7087c0488711",
 							},
 						},
 						IsExpired: true,
 					}, nil)
 
 				sessionManager.EXPECT().
-					Destroy(gomock.Any(), gomock.Any()).
+					RevokeRefreshToken(gomock.Any(), refreshToken).
 					Return(nil)
 			},
 		},
 		{
-			name:    "expired token destroy error",
+			name:    "expired token revoke error",
 			want:    domain.Tokens{},
 			wantErr: assert.AnError,
 			setup: func(sessionManager *mocks.MockSessionManager) {
@@ -310,7 +313,7 @@ func TestAuth_GetNewTokens(t *testing.T) {
 					}, nil)
 
 				sessionManager.EXPECT().
-					Destroy(gomock.Any(), gomock.Any()).
+					RevokeRefreshToken(gomock.Any(), refreshToken).
 					Return(assert.AnError)
 			},
 		},

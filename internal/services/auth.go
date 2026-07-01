@@ -80,15 +80,15 @@ func (a *Auth) GetNewTokens(ctx context.Context, refreshToken string) (domain.To
 		return domain.Tokens{}, err
 	}
 
-	if sessionInfo.TokenType != security.TokenTypeRefresh {
-		return domain.Tokens{}, fmt.Errorf("invalid token type: %s %w", sessionInfo.TokenType, ErrInvalidTokenType)
-	}
-
 	if sessionInfo.IsExpired {
-		if err := a.SessionManager.Destroy(ctx, uuid.MustParse(sessionInfo.Subject)); err != nil {
+		if err := a.SessionManager.RevokeRefreshToken(ctx, refreshToken); err != nil {
 			return domain.Tokens{}, err
 		}
 		return domain.Tokens{}, fmt.Errorf("refresh token is expired: user: %s %w", sessionInfo.Subject, ErrRefreshTokenExpired)
+	}
+
+	if sessionInfo.TokenType != security.TokenTypeRefresh {
+		return domain.Tokens{}, fmt.Errorf("invalid token type: %s %w", sessionInfo.TokenType, ErrInvalidTokenType)
 	}
 
 	isRevoked, err := a.SessionManager.CheckIsRevokedRefreshToken(ctx, refreshToken)

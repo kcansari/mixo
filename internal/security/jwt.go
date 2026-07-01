@@ -91,6 +91,14 @@ func (j *JWTService) ParseJWT(t string) (*CustomClaims, error) {
 	})
 
 	if err != nil {
+
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			tokenClaims, ok := token.Claims.(*CustomClaims)
+			if ok {
+				return tokenClaims, fmt.Errorf("security.jwt.ParseJWT: %w", err)
+			}
+		}
+
 		return nil, fmt.Errorf("security.jwt.ParseJWT: %w", err)
 	}
 

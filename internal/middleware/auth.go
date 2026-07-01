@@ -64,7 +64,7 @@ func (am *AuthMiddleware) RequireAuth(next http.Handler) http.Handler {
 			return
 		}
 
-		if sessionInfo.TokenType != security.TokenTypeAccess {
+		if sessionInfo.CustomClaims.TokenType != security.TokenTypeAccess {
 			httpx.Render(w, r, httpx.FromError(r.Context(), httpx.ErrUnauthorized))
 			return
 		}
